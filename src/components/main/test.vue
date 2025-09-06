@@ -1,579 +1,368 @@
 <template>
-  <div class="paris-vtc-app">
-    <!-- Header de l'application -->
-    <div class="app-header">
-      <h1>🚖 VTC Paris</h1>
-      <p>Service de transport dans Paris intra-muros</p>
-    </div>
+ 
+    
+    <!-- Hero Section -->
+    <section class="relative pt-20 pb-16 px-4">
+      <div class="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10" />
+      <div class="container mx-auto max-w-6xl relative z-10">
+        <div class="text-center mb-12">
+          <h1 class="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
+            VTC Paris
+            <span class="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent block">
+              Premium
+            </span>
+          </h1>
+          <p class="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            Réservez votre chauffeur privé en quelques clics. Service premium, tarifs transparents, disponible 24h/7j.
+          </p>
+        </div>
 
-    <!-- Carte de Paris -->
-    <div class="paris-map-container">
-      <div ref="mapContainer" class="paris-map"></div>
-      
-      <!-- Contrôles de la carte -->
-      <div class="map-controls">
-        <button @click="locateUser" class="control-btn" title="Me localiser">
-          <span class="btn-icon">📍</span>
-        </button>
-        <button @click="resetToParis" class="control-btn" title="Recenter Paris">
-          <span class="btn-icon">🗼</span>
-        </button>
-      </div>
-
-      <!-- Sélection des points -->
-      <div class="location-buttons">
-        <button @click="setPickup" class="location-btn pickup-btn">
-          <span class="btn-icon">🚗</span>
-          Départ
-        </button>
-        <button @click="setDestination" class="location-btn destination-btn">
-          <span class="btn-icon">🎯</span>
-          Arrivée
-        </button>
-      </div>
-    </div>
-
-    <!-- Informations de course -->
-    <div v-if="routeInfo" class="ride-info">
-      <div class="info-card">
-        <h3>📊 Détails de la course</h3>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="label">Distance:</span>
-            <span class="value">{{ (routeInfo.distance / 1000).toFixed(1) }} km</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Durée:</span>
-            <span class="value">{{ Math.round(routeInfo.duration / 60) }} min</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Prix:</span>
-            <span class="value price">{{ calculatePrice(routeInfo.distance) }} €</span>
+        <!-- Booking Form -->
+        <div class="max-w-4xl mx-auto shadow-2xl border-0 bg-white/95 backdrop-blur-sm rounded-xl overflow-hidden">
+          <div class="p-8">
+            <div class="grid md:grid-cols-3 gap-6 mb-6">
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-gray-700">Point de départ</label>
+                <div class="relative">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-3 h-4 w-4 text-gray-400">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                  <input 
+                    placeholder="Adresse de départ"
+                    v-model="pickup"
+                    class="pl-10 h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-gray-700">Destination</label>
+                <div class="relative">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-3 h-4 w-4 text-gray-400">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                  <input 
+                    placeholder="Adresse d'arrivée"
+                    v-model="destination"
+                    class="pl-10 h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-gray-700">Date & Heure</label>
+                <div class="relative">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-3 h-4 w-4 text-gray-400">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <input 
+                    type="datetime-local"
+                    class="pl-10 h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <button class="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md hover:scale-[1.02] transition-all duration-200 shadow-lg flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-5 w-5">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              Rechercher un chauffeur
+            </button>
           </div>
         </div>
-        <button @click="confirmRide" class="confirm-btn">
-          🚗 Confirmer la course
-        </button>
       </div>
-    </div>
+    </section>
 
-    <!-- Instructions -->
-    <div class="instructions">
-      <p>📍 Sélectionnez votre point de départ et d'arrivée sur la carte</p>
-    </div>
-  </div>
+    <!-- Vehicle Selection -->
+    <section class="py-16 px-4">
+      <div class="container mx-auto max-w-6xl">
+        <div class="text-center mb-12">
+          <h2 class="text-4xl font-bold text-gray-900 mb-4">Nos Véhicules</h2>
+          <p class="text-lg text-gray-600">Choisissez le véhicule qui correspond à vos besoins</p>
+        </div>
+        
+        <div class="grid md:grid-cols-3 gap-8">
+          <!-- Vehicle Card 1 -->
+          <div class="relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-105 rounded-xl border border-gray-200 bg-white">
+            <div class="p-6 text-center">
+              <div class="text-6xl mb-4">🚗</div>
+              <h3 class="text-2xl font-bold text-gray-900 mb-2">Berline E-class</h3>
+              <p class="text-gray-600 mb-4">Confort et élégance pour vos déplacements</p>
+              
+              <div class="text-3xl font-bold text-blue-600 mb-6">
+                À partir de 50-60€
+              </div>
+              
+              <ul class="space-y-2 mb-6 text-sm text-gray-600">
+                <li class="flex items-center justify-center">
+                  <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                  1-3 passagers
+                </li>
+                <li class="flex items-center justify-center">
+                  <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                  WiFi gratuit
+                </li>
+                <li class="flex items-center justify-center">
+                  <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                  Eau offerte
+                </li>
+              </ul>
+              
+              <button class="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md hover:scale-105 transition-all duration-200">
+                Choisir ce véhicule
+              </button>
+            </div>
+          </div>
+          
+          <!-- Vehicle Card 2 (Popular) -->
+          <div class="relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-105 rounded-xl border-2 border-blue-500 bg-white">
+            <div class="absolute top-4 right-4 bg-blue-600 text-white text-xs font-medium px-2.5 py-0.5 rounded-full">
+              Populaire
+            </div>
+            <div class="p-6 text-center">
+              <div class="text-6xl mb-4">🚐</div>
+              <h3 class="text-2xl font-bold text-gray-900 mb-2">Van V-class</h3>
+              <p class="text-gray-600 mb-4">Espace et confort pour les groupes</p>
+              
+              <div class="text-3xl font-bold text-blue-600 mb-6">
+                À partir de 60€
+              </div>
+              
+              <ul class="space-y-2 mb-6 text-sm text-gray-600">
+                <li class="flex items-center justify-center">
+                  <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                  1-6 passagers
+                </li>
+                <li class="flex items-center justify-center">
+                  <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                  Bagages XXL
+                </li>
+                <li class="flex items-center justify-center">
+                  <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                  Écran TV
+                </li>
+              </ul>
+              
+              <button class="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md hover:scale-105 transition-all duration-200">
+                Choisir ce véhicule
+              </button>
+            </div>
+          </div>
+          
+          <!-- Vehicle Card 3 -->
+          <div class="relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-105 rounded-xl border border-gray-200 bg-white">
+            <div class="p-6 text-center">
+              <div class="text-6xl mb-4">🏎️</div>
+              <h3 class="text-2xl font-bold text-gray-900 mb-2">Berline S new-class</h3>
+              <p class="text-gray-600 mb-4">Le summum du luxe automobile</p>
+              
+              <div class="text-3xl font-bold text-blue-600 mb-6">
+                À partir de 80€
+              </div>
+              
+              <ul class="space-y-2 mb-6 text-sm text-gray-600">
+                <li class="flex items-center justify-center">
+                  <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                  1-3 passagers
+                </li>
+                <li class="flex items-center justify-center">
+                  <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                  Sièges massage
+                </li>
+                <li class="flex items-center justify-center">
+                  <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                  Champagne
+                </li>
+              </ul>
+              
+              <button class="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md hover:scale-105 transition-all duration-200">
+                Choisir ce véhicule
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Price Calculator -->
+    <section class="py-16 px-4 bg-white">
+      <div class="container mx-auto max-w-4xl">
+        <div class="shadow-xl border-0 rounded-xl overflow-hidden bg-white">
+          <div class="text-center pb-8 pt-12">
+            <h2 class="text-3xl font-bold text-gray-900 mb-4">
+              Calculateur de Prix
+            </h2>
+            <p class="text-lg text-gray-600">
+              Estimez le coût de votre trajet en quelques clics
+            </p>
+          </div>
+          
+          <div class="space-y-6 px-8 pb-8">
+            <div class="grid md:grid-cols-2 gap-6">
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-gray-700">Destination</label>
+                <select 
+                  v-model="selectedDestination" 
+                  class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3"
+                >
+                  <option value="" disabled selected>Choisir une destination</option>
+                  <option value="ville">Ville</option>
+                  <option value="banlieue">Banlieue</option>
+                  <option value="aeroports">Aéroports</option>
+                  <option value="disney">Disney</option>
+                </select>
+              </div>
+              
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-gray-700">Type de véhicule</label>
+                <select 
+                  v-model="selectedVehicle" 
+                  class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3"
+                >
+                  <option value="" disabled selected>Choisir un véhicule</option>
+                  <option value="eclass">Berline E-class</option>
+                  <option value="vclass">Van V-class</option>
+                  <option value="sclass">Berline S new-class</option>
+                </select>
+              </div>
+            </div>
+            
+            <button 
+              @click="calculatePrice"
+              :disabled="!selectedDestination || !selectedVehicle"
+              class="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 flex items-center justify-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-5 w-5">
+                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                <line x1="8" y1="6" x2="16" y2="6"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+                <line x1="8" y1="18" x2="16" y2="18"></line>
+              </svg>
+              Calculer le prix
+            </button>
+            
+            <div v-if="calculatedPrice" class="text-center p-8 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl">
+              <div class="text-4xl font-bold text-blue-600 mb-2">
+                {{ calculatedPrice }}€
+              </div>
+              <p class="text-gray-600">Prix estimé pour votre trajet</p>
+              <button class="mt-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-md">
+                Réserver maintenant
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Services -->
+    <section class="py-16 px-4 bg-gray-900 text-white">
+      <div class="container mx-auto max-w-6xl">
+        <div class="text-center mb-12">
+          <h2 class="text-4xl font-bold mb-4">Nos Services</h2>
+          <p class="text-lg text-gray-300">Une gamme complète de services premium</p>
+        </div>
+        
+        <div class="grid md:grid-cols-4 gap-8">
+          <div class="text-center">
+            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span class="text-2xl">✈️</span>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Aéroports</h3>
+            <p class="text-gray-300">Transferts vers tous les aéroports parisiens</p>
+          </div>
+          
+          <div class="text-center">
+            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span class="text-2xl">🏰</span>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Disney</h3>
+            <p class="text-gray-300">Navettes vers Disneyland Paris</p>
+          </div>
+          
+          <div class="text-center">
+            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span class="text-2xl">🌆</span>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Ville & Banlieue</h3>
+            <p class="text-gray-300">Déplacements dans tout Paris et sa région</p>
+          </div>
+          
+          <div class="text-center">
+            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span class="text-2xl">⏰</span>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Mise à disposition</h3>
+            <p class="text-gray-300">Chauffeur dédié à l'heure</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+
 </template>
 
 <script>
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { RoutingService } from '../../services/routing';
-
-// Correction des icônes Leaflet
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
 export default {
-  name: 'ParisMobileMap',
   data() {
     return {
-      map: null,
-      routeLayer: null,
-      pickupMarker: null,
-      destinationMarker: null,
-      pickupLocation: null,
-      destinationLocation: null,
-      routeInfo: null
-    };
-  },
-  mounted() {
-    this.$nextTick(() => {
-      this.initParisMap();
-    });
-  },
-  beforeUnmount() {
-    if (this.map) {
-      this.map.remove();
+      pickup: '',
+      destination: '',
+      selectedDestination: '',
+      selectedVehicle: '',
+      calculatedPrice: null,
+      
+      prices: {
+        eclass: {
+          ville: { min: 50, max: 60 },
+          banlieue: { min: 60, max: 70 },
+          aeroports: 80,
+          disney: 100
+        },
+        vclass: {
+          ville: 60,
+          banlieue: 70,
+          aeroports: 90,
+          disney: 110
+        },
+        sclass: {
+          ville: 80,
+          banlieue: 90,
+          aeroports: 130,
+          disney: 150
+        }
+      }
     }
   },
   methods: {
-    initParisMap() {
-      // Centre de Paris - Hôtel de Ville
-      const parisCenter = [48.8566, 2.3522];
+    calculatePrice() {
+      if (!this.selectedDestination || !this.selectedVehicle) return;
       
-      this.map = L.map(this.$refs.mapContainer, {
-        center: parisCenter,
-        zoom: 13,
-        minZoom: 12,
-        maxZoom: 16,
-        zoomControl: false,
-        attributionControl: true,
-        maxBounds: this.getParisBounds(),
-        maxBoundsViscosity: 0.9
-      });
-
-      // Carte OpenStreetMap en FRANÇAIS
-      L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
-        maxZoom: 20,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributeurs | <a href="https://www.openstreetmap.fr/">OSM France</a>',
-        bounds: this.getParisBounds()
-      }).addTo(this.map);
-
-      // Contrôle de zoom personnalisé en français
-      L.control.zoom({
-        position: 'bottomright',
-        zoomInTitle: 'Zoomer',
-        zoomOutTitle: 'Dézoomer'
-      }).addTo(this.map);
-
-      // Contrôle d'attribution en français
-      this.map.attributionControl.setPrefix('Carte ©');
-
-      // Ajouter les limites de Paris
-      this.addParisBoundary();
-
-      // Ajouter les principaux quartiers de Paris
-      this.addParisDistricts();
-    },
-
-    getParisBounds() {
-      // Limites strictes de Paris intra-muros
-      return [
-        [48.815, 2.225], // Sud-Ouest
-        [48.902, 2.470]  // Nord-Est
-      ];
-    },
-
-    addParisBoundary() {
-      // Rectangle pour Paris intra-muros
-      const parisBounds = this.getParisBounds();
-      L.rectangle(parisBounds, {
-        color: '#ff6b35',
-        weight: 2,
-        opacity: 0.3,
-        fillOpacity: 0.1,
-        fillColor: '#ff6b35'
-      }).addTo(this.map).bindTooltip('Paris Intra-muros', {
-        permanent: false,
-        direction: 'center',
-        className: 'french-tooltip'
-      });
-    },
-
-    addParisDistricts() {
-      // Ajouter quelques labels de quartiers importants
-      const districts = [
-        { name: 'Champs-Élysées', coords: [48.873, 2.295], size: [100, 30] },
-        { name: 'Le Marais', coords: [48.857, 2.360], size: [80, 30] },
-        { name: 'Saint-Germain', coords: [48.853, 2.333], size: [100, 30] },
-        { name: 'Montmartre', coords: [48.886, 2.343], size: [90, 30] },
-        { name: 'Latin', coords: [48.849, 2.345], size: [60, 30] },
-        { name: 'Bastille', coords: [48.853, 2.370], size: [70, 30] }
-      ];
-
-      districts.forEach(district => {
-        L.marker(district.coords, {
-          icon: L.divIcon({
-            html: `<div style="
-              background: rgba(255, 107, 53, 0.9);
-              color: white;
-              padding: 4px 8px;
-              border-radius: 12px;
-              font-size: 10px;
-              font-weight: bold;
-              text-align: center;
-              border: 1px solid white;
-            ">${district.name}</div>`,
-            className: 'district-label',
-            iconSize: district.size
-          })
-        }).addTo(this.map);
-      });
-    },
-
-    resetToParis() {
-      this.map.setView([48.8566, 2.3522], 13);
-    },
-
-    locateUser() {
-      if (!navigator.geolocation) {
-        alert('La géolocalisation n\'est pas supportée par votre navigateur');
-        return;
+      const price = this.prices[this.selectedVehicle]?.[this.selectedDestination];
+      if (typeof price === 'object') {
+        this.calculatedPrice = price.min;
+      } else if (typeof price === 'number') {
+        this.calculatedPrice = price;
       }
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          const userPos = [latitude, longitude];
-          
-          if (this.isInParis(userPos)) {
-            this.map.setView(userPos, 15);
-            
-            // Ajouter un marqueur temporaire en français
-            L.marker(userPos, {
-              icon: L.icon({
-                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-                iconSize: [20, 32],
-                iconAnchor: [10, 32],
-              })
-            })
-            .addTo(this.map)
-            .bindPopup('📍 Votre position actuelle')
-            .openPopup();
-            
-          } else {
-            alert('Vous êtes en dehors de Paris. Notre service est disponible uniquement dans Paris intra-muros.');
-          }
-        },
-        (error) => {
-          console.error('Erreur de géolocalisation:', error);
-          alert('Impossible d\'accéder à votre position. Vérifiez les paramètres de géolocalisation.');
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 60000
-        }
-      );
-    },
-
-    isInParis(coords) {
-      const [lat, lng] = coords;
-      const bounds = this.getParisBounds();
-      return lat >= bounds[0][0] && lat <= bounds[1][0] &&
-             lng >= bounds[0][1] && lng <= bounds[1][1];
-    },
-
-    setPickup() {
-      const center = this.map.getCenter();
-      
-      if (!this.isInParis([center.lat, center.lng])) {
-        alert('Veuillez sélectionner un point dans Paris intra-muros');
-        return;
-      }
-
-      if (this.pickupMarker) {
-        this.map.removeLayer(this.pickupMarker);
-      }
-      
-      this.pickupLocation = [center.lat, center.lng];
-      
-      this.pickupMarker = L.marker(center, {
-        icon: L.icon({
-          iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-          iconSize: [25, 41],
-          iconAnchor: [12, 41],
-        }),
-        zIndexOffset: 1000
-      }).addTo(this.map)
-      .bindPopup('📍 Point de départ')
-      .openPopup();
-    },
-
-    setDestination() {
-      const center = this.map.getCenter();
-      
-      if (!this.isInParis([center.lat, center.lng])) {
-        alert('Veuillez sélectionner un point dans Paris intra-muros');
-        return;
-      }
-
-      if (this.destinationMarker) {
-        this.map.removeLayer(this.destinationMarker);
-      }
-      
-      this.destinationLocation = [center.lat, center.lng];
-      
-      this.destinationMarker = L.marker(center, {
-        icon: L.icon({
-          iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-          iconSize: [25, 41],
-          iconAnchor: [12, 41],
-        }),
-        zIndexOffset: 900
-      }).addTo(this.map)
-      .bindPopup('🎯 Point d\'arrivée')
-      .openPopup();
-    },
-
-    async calculateRoute() {
-      if (!this.pickupLocation || !this.destinationLocation) {
-        alert('Veuillez sélectionner un point de départ et d\'arrivée');
-        return;
-      }
-      
-      try {
-        const route = await RoutingService.calculateRoute(
-          [this.pickupLocation[1], this.pickupLocation[0]],
-          [this.destinationLocation[1], this.destinationLocation[0]]
-        );
-        
-        if (route) {
-          this.routeInfo = route;
-          
-          if (this.routeLayer) {
-            this.map.removeLayer(this.routeLayer);
-          }
-          
-          this.routeLayer = L.geoJSON(route.geometry, {
-            style: {
-              color: '#ff6b35',
-              weight: 5,
-              opacity: 0.8,
-              lineJoin: 'round'
-            }
-          }).addTo(this.map)
-          .bindTooltip('Itinéraire VTC', { permanent: false });
-          
-          this.map.fitBounds(this.routeLayer.getBounds().pad(0.1));
-        }
-      } catch (error) {
-        console.error('Erreur calcul itinéraire:', error);
-        alert('Erreur lors du calcul de l\'itinéraire. Veuillez réessayer.');
-      }
-    },
-
-    confirmRide() {
-      if (!this.routeInfo) {
-        this.calculateRoute();
-        return;
-      }
-
-      alert(`🎉 Course confirmée !\nPrix: ${this.calculatePrice(this.routeInfo.distance)} €\nDurée: ${Math.round(this.routeInfo.duration / 60)} minutes`);
-      
-      // Réinitialiser pour une nouvelle course
-      this.resetSelection();
-    },
-
-    resetSelection() {
-      if (this.pickupMarker) this.map.removeLayer(this.pickupMarker);
-      if (this.destinationMarker) this.map.removeLayer(this.destinationMarker);
-      if (this.routeLayer) this.map.removeLayer(this.routeLayer);
-      
-      this.pickupLocation = null;
-      this.destinationLocation = null;
-      this.routeInfo = null;
-      this.pickupMarker = null;
-      this.destinationMarker = null;
-      this.routeLayer = null;
-    },
-
-    calculatePrice(distanceMeters) {
-      const distanceKm = distanceMeters / 1000;
-      const basePrice = 2.50;
-      const pricePerKm = 1.80;
-      return (basePrice + (distanceKm * pricePerKm)).toFixed(2);
     }
   }
-};
+}
 </script>
 
-<style scoped>
-.paris-vtc-app {
-  max-width: 100%;
-  height: 100vh;
-  padding: 10px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+<style>
+/* Vous pouvez ajouter des styles globaux ici si nécessaire */
+.gradient-primary {
+  background-image: linear-gradient(to right, #3b82f6, #8b5cf6);
 }
-
-.app-header {
-  text-align: center;
-  margin-bottom: 10px;
-}
-
-.app-header h1 {
-  font-size: 1.5rem;
-  margin: 0;
-  color: #2c3e50;
-}
-
-.app-header p {
-  font-size: 0.8rem;
-  color: #7f8c8d;
-  margin: 5px 0 0 0;
-}
-
-.paris-map-container {
-  position: relative;
-  width: 100%;
-  height: 50vh;
-  border-radius: 15px;
-  overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-  margin-bottom: 10px;
-}
-
-.paris-map {
-  width: 100%;
-  height: 100%;
-  border-radius: 15px;
-}
-
-.map-controls {
-  position: absolute;
-  bottom: 15px;
-  right: 15px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.control-btn {
-  width: 45px;
-  height: 45px;
-  border-radius: 50%;
-  border: none;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.btn-icon {
-  font-size: 1.2rem;
-}
-
-.location-buttons {
-  position: absolute;
-  bottom: 15px;
-  left: 15px;
-  z-index: 1000;
-  display: flex;
-  gap: 10px;
-}
-
-.location-btn {
-  padding: 10px 15px;
-  border: none;
-  border-radius: 25px;
-  font-size: 0.8rem;
-  font-weight: bold;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-
-.pickup-btn {
-  background: #27ae60;
-  color: white;
-}
-
-.destination-btn {
-  background: #e74c3c;
-  color: white;
-}
-
-.ride-info {
-  margin-top: 10px;
-}
-
-.info-card {
-  background: white;
-  padding: 15px;
-  border-radius: 15px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-}
-
-.info-card h3 {
-  margin: 0 0 15px 0;
-  font-size: 1.1rem;
-  color: #2c3e50;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 15px;
-}
-
-.info-item {
-  display: flex;
-  flex-direction: column;
-}
-
-.label {
-  font-size: 0.8rem;
-  color: #7f8c8d;
-  margin-bottom: 2px;
-}
-
-.value {
-  font-weight: bold;
-  color: #2c3e50;
-}
-
-.price {
-  color: #27ae60;
-  font-size: 1.1rem;
-}
-
-.confirm-btn {
-  width: 100%;
-  padding: 12px;
-  background: linear-gradient(45deg, #ff6b35, #f7931e);
-  color: white;
-  border: none;
-  border-radius: 25px;
-  font-weight: bold;
-  cursor: pointer;
-  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
-}
-
-.instructions {
-  text-align: center;
-  margin-top: 10px;
-  font-size: 0.8rem;
-  color: #7f8c8d;
-}
-
-/* Styles pour les éléments de la carte */
-:deep(.french-tooltip) {
-  background: rgba(255, 107, 53, 0.9);
-  border: none;
-  color: white;
-  font-weight: bold;
-  border-radius: 15px;
-  font-size: 12px;
-}
-
-:deep(.district-label) {
-  background: transparent !important;
-  border: none !important;
-}
-
-:deep(.leaflet-control-attribution) {
-  font-size: 10px;
-  background: rgba(255, 255, 255, 0.8);
-}
-
-/* Responsive pour mobile */
-@media (max-width: 768px) {
-  .paris-map-container {
-    height: 45vh;
-  }
-  
-  .location-buttons {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .location-btn {
-    font-size: 0.7rem;
-    padding: 8px 12px;
-  }
-  
-  .info-grid {
-    grid-template-columns: 1fr;
-  }
+.hover\:gradient-primary:hover {
+  background-image: linear-gradient(to right, #3b82f6, #8b5cf6);
 }
 </style>

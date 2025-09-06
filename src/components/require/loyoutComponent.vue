@@ -4,17 +4,27 @@
     <header class="sticky top-0 left-0 right-0 z-50 bg-white/95 bg-opacity-50 backdrop-blur-md border-b border-gray-200">
     <div class="container mx-auto px-4">
       <div class="flex items-center justify-between h-16">
-        <router-link to="/home" class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        <div class="md:hidden lg:hidden sm:block block">
+          <router-link v-if="rout==='home'" to="/reserver" class="px-4  py-2 rounded gradient-primary text-white">
+          Réserver une course
+        </router-link>
+
+        <router-link v-else to="/home" class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          VTC Paris Premium
+        </router-link>
+        </div>
+        
+         <router-link  to="/home" class="md:block lg:block sm:hidden hidden text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
           VTC Paris Premium
         </router-link>
 
         <!-- Menu desktop -->
         <nav class="hidden md:flex items-center space-x-8">
           <router-link to="/home" class="text-gray-700 hover:text-blue-600 transition-colors">Accueil</router-link>
-          <router-link to="/booking" class="text-gray-700 hover:text-blue-600 transition-colors">Réserver</router-link>
+          <!-- <router-link to="/reserver" class="text-gray-700 hover:text-blue-600 transition-colors">Réserver</router-link> -->
           <router-link to="/prices" class="text-gray-700 hover:text-blue-600 transition-colors">Tarifs</router-link>
-          <router-link to="/fleet" class="text-gray-700 hover:text-blue-600 transition-colors">Flotte</router-link>
-          <router-link to="/about" class="text-gray-700 hover:text-blue-600 transition-colors">À propos</router-link>
+          <router-link to="/flote" class="text-gray-700 hover:text-blue-600 transition-colors">Flotte</router-link>
+          <router-link to="/a-propos" class="text-gray-700 hover:text-blue-600 transition-colors">À propos</router-link>
           <router-link to="/contact" class="text-gray-700 hover:text-blue-600 transition-colors">Contact</router-link>
         </nav>
 
@@ -23,8 +33,8 @@
           <button class="border border-gray-300 px-4 py-2 rounded hover:bg-gray-100">
             <router-link to="/login">Connexion</router-link>
           </button>
-          <button class="px-4 py-2 rounded gradient-primary text-white">
-            <router-link to="/booking">Réserver</router-link>
+          <button  class=" lg:block md:block sm:hidden hidden px-4 py-2 rounded gradient-primary text-white">
+            <router-link to="/reserver">Réserver</router-link>
           </button>
         </div>
 
@@ -45,17 +55,17 @@
       <div v-if="isMenuOpen" class="md:hidden py-4 border-t border-gray-200">
         <nav class="flex flex-col space-y-4">
           <router-link to="/home" class="text-gray-700 hover:text-blue-600 transition-colors">Accueil</router-link>
-          <router-link to="/booking" class="text-gray-700 hover:text-blue-600 transition-colors">Réserver</router-link>
+          <router-link to="/reserver" class="text-gray-700 hover:text-blue-600 transition-colors">Réserver</router-link>
           <router-link to="/prices" class="text-gray-700 hover:text-blue-600 transition-colors">Tarifs</router-link>
-          <router-link to="/fleet" class="text-gray-700 hover:text-blue-600 transition-colors">Flotte</router-link>
-          <router-link to="/about" class="text-gray-700 hover:text-blue-600 transition-colors">À propos</router-link>
+          <router-link to="/flote" class="text-gray-700 hover:text-blue-600 transition-colors">Flotte</router-link>
+          <router-link to="/a-propos" class="text-gray-700 hover:text-blue-600 transition-colors">À propos</router-link>
           <router-link to="/contact" class="text-gray-700 hover:text-blue-600 transition-colors">Contact</router-link>
           <div class="flex flex-col space-y-2 pt-4">
             <button class="border border-gray-300 px-4 py-2 rounded hover:bg-gray-100">
               <router-link to="/login">Connexion</router-link>
             </button>
-            <button class="px-4 py-2 rounded gradient-primary text-white">
-              <router-link to="/booking">Réserver</router-link>
+            <button v-if="rout!=='home'" class="px-4 py-2 rounded gradient-primary text-white">
+              <router-link to="/reserver">Réserver</router-link>
             </button>
           </div>
         </nav>
@@ -124,6 +134,15 @@ data(){
     return{
          isMenuOpen: false,
     }
+}
+,
+computed:{
+  rout(){
+    return this.$route.name;
+  }
+},
+mounted(){
+  console.log(this.rout);
 }
 }
 

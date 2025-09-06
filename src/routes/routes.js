@@ -63,8 +63,8 @@ const routes = [
 },
  
     {
-  path:'/booking',
-  name:'booking',
+  path:'/reserver',
+  name:'reserver',
    components:{
     default:layoutcomponent,
     two:BookingComponent
@@ -81,8 +81,8 @@ name:'prices',
   }
 },
 {
-  path:'/fleet',
-  name:'fleet',
+  path:'/flote',
+  name:'flote',
  
    components:{
     default:layoutcomponent,
@@ -90,8 +90,8 @@ name:'prices',
   }
 },
 {
-  path:'/about',
-  name:'about',
+  path:'/a-propos',
+  name:'apropos',
  
    components:{
     default:layoutcomponent,

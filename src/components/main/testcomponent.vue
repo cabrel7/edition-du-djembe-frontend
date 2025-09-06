@@ -14,12 +14,16 @@
           <p class="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
             Réservez votre chauffeur privé en quelques clics. Service premium, tarifs transparents, disponible 24h/7j.
           </p>
+
         </div>
 
         <!-- Booking Form -->
         <div
           class="lg:max-w-6xl md:w-full sm:w-full w-full   shadow-2xl border-0 bg-white/95 backdrop-blur-sm rounded-xl overflow-hidden">
-          <div class="p-8">
+          
+          <div class="px-8 py-4">
+             <h1 class=" text-center mb-2 text-lg text-blue-600 ">  effectuer une course rapide maintenant ?</h1>
+
             <div class="grid md:grid-cols-3 gap-6 mb-6">
               <div class="space-y-2">
                 <label class="text-sm font-medium text-gray-700">Point de départ</label>
@@ -122,7 +126,7 @@
                 <p class="text-lg text-gray-600">Visualisez votre trajet sur la carte de Paris</p>
               </div>
 
-              <div class="relative rounded-t-none w-full overflow-hidden shadow-2xl">
+              <div class="relative rounded-t-none w-full overflow-hidden z-0 shadow-2xl">
                 <div ref="mapContainer" class="h-96 w-full rounded-xl"></div>
 
                 <!-- Contrôles de la carte -->
@@ -357,7 +361,7 @@ export default {
           zoomAnimation: false,
           fadeAnimation: false,
           markerZoomAnimation: false,
-          maxBounds: this.getParisBounds(),
+          // maxBounds: this.getParisBounds(),
           maxBoundsViscosity: 0.8
         });
 
