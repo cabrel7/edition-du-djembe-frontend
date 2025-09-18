@@ -110,7 +110,7 @@
               </div>
 
               <div class="space-y-2">
-                <label class="text-sm font-medium text-gray-700">Heure</label>
+                <label class="text-sm font-medium text-gray-700">Heure de depart</label>
                 <input type="time" v-model="formData.time"
                   class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
               </div>
@@ -118,27 +118,32 @@
 
            
 
-            <div class="grid md:grid-cols-2 gap-6">
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-gray-700">Type de véhicule</label>
-                <select v-model="formData.vehicle" @change="updatePassengerOptions"
-                  class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3">
-                  <option value="" disabled selected>Choisir un véhicule</option>
-                  <option value="eclass">Berline E-class</option>
-                  <option value="vclass">Van V-class</option>
-                  <option value="sclass">Berline S new-class</option>
-                </select>
-              </div>
+           <div v-if="routeInfo">
+                       <p class="">Choisissez un vehicule</p>
+              <div  class="flex  justify-center items-center  gap-4">
+                <label v-for="car in cars" :key="car.id"
+                  :class="car.id == selected.id? 'border-[#3d259d] border-2 text-gray-800 bg-[#3B82F6]/10' : 'bg-white  text-black hover:bg-gray-300'"
+                  class="bg-white relative rounded-md overflow-hidden border shadow-md hover:shadow-xl transition  w-2/4 ">
+                  <input type="radio" v-model="selected"
+                    :value="setvalue(car.id, calculatePrice(routeInfo.distance, car.tarification_kilometrage, car.tarification_heure))"
+                    class="hidden " />
 
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-gray-700">Nombre de passagers</label>
-                <input v-model="formData.passengers"
-                type="number"
-                :max="maxPassengers"
-                  class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3"/>
-                 
+                  <img class="w-full  object-cover h-48  " :src="car.image" alt="">
+
+
+                  <div
+                    class="bottom-0 justify-center text-center font-semibold text-lg text-gray-300 absolute flex flex-col bg-gradient-to-t mt-2 from-black/60 to-gray-600/40 w-full  shadow-2xl rounded-t-md  h-1/3  z-50 bg-opacity-65">
+                    <p>{{ car.name }}</p>
+                    <p>{{ calculatePrice(routeInfo.distance, car.tarification_kilometrage, car.tarification_heure) }} €
+                    </p>
+                  </div>
+
+
+                </label>
+
+
               </div>
-            </div>
+              </div>
  <!-- Numéro de vol/train -->
          
             <div class="space-y-2">
@@ -232,26 +237,10 @@
 
           <!-- Step 2: Personal Info -->
           <div v-if="step === 2" class="space-y-6">
-            <div class="grid md:grid-cols-2 gap-6">
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-gray-700">Prénom</label>
-                <input placeholder="Votre prénom" v-model="formData.firstName"
-                  class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
-              </div>
+            
 
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-gray-700">Nom</label>
-                <input placeholder="Votre nom" v-model="formData.lastName"
-                  class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
-              </div>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-6">
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-gray-700">Email</label>
-                <input type="email" placeholder="votre@email.com" v-model="formData.email"
-                  class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
-              </div>
+            <div class="grid md:grid-cols-1 gap-6">
+              
 
               <div class="space-y-2">
                 <label class="text-sm font-medium text-gray-700">Téléphone</label>
@@ -325,25 +314,17 @@
                 </div>
                 <div class="border-t pt-3 flex justify-between text-lg font-bold">
                   <span>Total estimé:</span>
-                  <span class="text-blue-600">{{ calculateTotal() }}€</span>
+                  <span class="text-blue-600">{{ }}€</span>
                 </div>
               </div>
             </div>
+             <h3 class="text-md text-red-500">nb: vous devez payer 50% des montant de la course et le reste lorsque la couse sera terminer</h3>
 
             <div class="space-y-4">
               <h3 class="text-lg font-semibold">Informations de paiement</h3>
-              <div class="grid md:grid-cols-2 gap-4">
-                <input placeholder="Numéro de carte"
-                  class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
-                <input placeholder="MM/AA"
-                  class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
-              </div>
-              <div class="grid md:grid-cols-2 gap-4">
-                <input placeholder="Code CVV"
-                  class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
-                <input placeholder="Nom sur la carte"
-                  class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
-              </div>
+             
+                    <div id="card-element"></div>
+
             </div>
 
             <div class="flex space-x-4">
@@ -370,12 +351,14 @@
 </template>
 
 <script>
+import { loadStripe } from "@stripe/stripe-js";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { RoutingService } from '../../services/routing';
 import { GeocodingService } from '../../services/geocoding';
 import { parisLocations } from '../../assets/paris-data';
 import { LocateIcon } from 'lucide-vue-next';
+import axios from 'axios';
 // Correction des icônes Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -387,19 +370,30 @@ export default {
     components: { LocateIcon },
   data() {
     return {
+      stripe: null,
+      cardElement: null,
+      amount: 20, // exemple montant
+      message: "",
       bagage: false,
       seat: false,
       step: 1,
       maxseat:3,
-      
+      selected: {
+        id:null,
+        price:0
+      },
       maxPassengers: 6,
       maxLuggage: 7,
       pickup: '',
         destination: '',
+        pickupLocation: null,
+      destinationLocation: null,
+      routeInfo: null,
       formData: {
         
         date: '',
         time: '',
+        phone:'',
         flightTrainNumber: '',
         intermediateStop: '',
         vehicle: '',
@@ -439,7 +433,8 @@ export default {
         'Parcs': parisLocations.parcs.slice(0, 10)
       },
       showCategory: null,
-      selectedCategory: ''
+      selectedCategory: '',
+      localhost:this.$store.state.localhost
 
     }
   },
@@ -450,9 +445,121 @@ export default {
       },
       max2(){
         return this.maxseat-this.formData.childSeats
-      }
+      },
+       cars() {
+      return this.$store.state.cars
+    }
+
+  },
+  async mounted() {
+    this.locateUser();
+   this.initStripe()
   },
   methods: {
+   async initStripe(){
+        try{
+        this.stripe = await loadStripe("pk_live_51S7dVELML18ba1cuj41VEX1xpslbifshJxXgIEmLGjcbl6qnzeVTLjDPUaw3s2tFkOOhoT3mjen85bHsJpTtTjMO006Y8gPh4S"); // ta clé publique
+    const elements = this.stripe.elements();
+    this.cardElement = elements.create("card");
+    if(window.onload){
+      console.log(this.cardElement)
+ this.cardElement.mount("#card-element");
+    }
+   
+  }catch(error){
+    console.log(error)
+  }
+
+    },
+     async handleSubmit() {
+      // Appel backend Laravel
+      await axios.post(this.localhost+"payement", {
+        
+       
+      }).then(response => {
+        console.log("Réservation enregistrée:", response.data);
+      }).catch(error => {
+        console.error("Erreur lors de l'enregistrement de la réservation:", error);
+      });
+      const res = await fetch("http://127.0.0.1:8000/api/payement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: this.amount })
+      });
+
+      const { clientSecret } = await res.json();
+
+      const { paymentIntent, error } = await this.stripe.confirmCardPayment(clientSecret, {
+        payment_method: { card: this.cardElement }
+      });
+
+      if (error) {
+        this.message = "❌ Erreur: " + error.message;
+      } else if (paymentIntent.status === "succeeded") {
+        this.message = "✅ Paiement réussi !";
+      }
+    },
+    async confirmRide() {
+      if (!this.routeInfo) return;
+      if (!this.selected) {
+        alert('selectionner un vehicule');
+        return
+      }
+      let price =this.selected.price
+    let hasPet =this.formData.hasPet==true?1:0
+       
+      let token = localStorage.getItem('token')
+      const duration = Math.round(this.routeInfo.duration / 60);
+      let formData = new FormData();
+      formData.append('pickup', this.pickup);
+      formData.append('destination', this.destination);
+      formData.append('pickupCoords', this.pickupLocation);
+      formData.append('destinationCoords', this.destinationLocation);
+      formData.append('distanceMeters', (this.routeInfo.distance/1000).toFixed(2));
+      formData.append('durationMinutes', duration);
+      formData.append('price', price);
+      formData.append('type', 'course');
+      formData.append('rideDateTime', this.rideDateTime);
+      formData.append('vehicle', this.selected.id);
+      formData.append('flightTrainNumber', this.formData.flightTrainNumber);
+      formData.append('intermediateStop', this.formData.intermediateStop);
+      formData.append('babySeats', this.formData.babySeats);
+      formData.append('childSeats', this.formData.childSeats);
+      formData.append('luggageCount', this.formData.luggageCount);
+      formData.append('luggageType', this.formData.luggageType);
+
+      formData.append('hasPet', hasPet);
+      formData.append('time', time);
+      formData.append('date', date);
+
+      formData.append('phone', this.formData.phone);
+      
+      try {
+        await this.axios.post(`${this.localhost}ride`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`
+
+          }
+        }
+        );
+      }
+      catch (error) {
+        console.error('Erreur lors de la confirmation de la course:', error);
+        alert('Erreur lors de la confirmation de la course. Veuillez réessayer.');
+        return;
+      }
+
+
+      alert(`🎉 Course confirmée !\nPrix: ${price} €\nDurée: ${duration} minutes`);
+    },
+
+    setvalue(id, price) {
+      let test
+      test={id:id,price:price};
+     
+      return test
+      
+    },
     
     getDefaultDateTime() {
       const now = new Date();
@@ -525,26 +632,56 @@ export default {
         this.showDestinationSuggestions = false;
        
       }
+       if (this.pickupLocation && this.destinationLocation) {
+        this.calculateRoute();
+      }
 
 
      
     },
+    async calculateRoute() {
+      if (!this.pickupLocation || !this.destinationLocation ) return;
 
-   
-    confirmRide() {
-      if (!this.routeInfo) return;
+      try {
+        const route = await RoutingService.calculateRoute(
+          [this.pickupLocation[1], this.pickupLocation[0]],
+          [this.destinationLocation[1], this.destinationLocation[0]]
+        );
 
-      const price = this.calculatePrice(this.routeInfo.distance);
-      const duration = Math.round(this.routeInfo.duration / 60);
+        if (!route) return;
 
-      alert(`🎉 Course confirmée !\nPrix: ${price} €\nDurée: ${duration} minutes`);
+        this.routeInfo = route;
+
+      
+
+       
+        
+
+      } catch (error) {
+        console.error('Erreur calcul itinéraire:', error);
+      }
     },
 
-    calculatePrice(distanceMeters) {
-      const distanceKm = distanceMeters / 1000;
-      const basePrice = 2.50;
-      const pricePerKm = 1.80;
-      return (basePrice + (distanceKm * pricePerKm)).toFixed(2);
+   
+  
+
+     calculatePrice(distanceMeters, pricePerKm, pricePerhour) {
+      let duration = Math.round(this.routeInfo.duration / 120)
+      let price = 0
+      if (duration > 30) {
+        price = (distanceMeters / 1000) * pricePerKm
+
+      } else {
+        price = duration * pricePerhour
+      }
+      if (this.formData.childSeats) {
+        price += this.formData.childSeats * 15
+      }
+      if (this.formData.babySeats) {
+        price += this.formData.babySeats * 15
+      }
+
+      return price.toFixed(2);
     },
 
     locateUser() {
@@ -567,6 +704,9 @@ export default {
             .catch(err => console.error('Erreur géocodage inverse:', err));
           this.pickup = location.name;
 
+          // this.addMarker([latitude, longitude], 'pickup');
+
+          // this.safeSetView([latitude, longitude], 15);
         },
         (error) => {
           console.error('Erreur géolocalisation:', error);
@@ -638,7 +778,57 @@ export default {
       let basePrice = 75; // Prix de base
       let extraSeats = (parseInt(this.formData.babySeats) + parseInt(this.formData.childSeats)) * 15;
       return basePrice + extraSeats;
-    }
+    },
+     async confirmRide() {
+      if (!this.routeInfo) return;
+      if (!this.selected) {
+        alert('selectionner un vehicule');
+        return
+      }
+      let price =this.selected.price
+    let hasPet =this.formData.hasPet==true?1:0
+       
+      let token = localStorage.getItem('token')
+      const duration = Math.round(this.routeInfo.duration / 60);
+      let formData = new FormData();
+      formData.append('pickup', this.pickup);
+      formData.append('destination', this.destination);
+      formData.append('pickupCoords', this.pickupLocation);
+      formData.append('destinationCoords', this.destinationLocation);
+      formData.append('distanceMeters', (this.routeInfo.distance/1000).toFixed(2));
+      formData.append('durationMinutes', duration);
+      formData.append('price', price);
+      formData.append('type', 'course');
+      formData.append('rideDateTime', this.rideDateTime);
+      formData.append('vehicle', this.selected.id);
+      formData.append('flightTrainNumber', this.formData.flightTrainNumber);
+      formData.append('intermediateStop', this.formData.intermediateStop);
+      formData.append('babySeats', this.formData.babySeats);
+      formData.append('childSeats', this.formData.childSeats);
+      formData.append('luggageCount', this.formData.luggageCount);
+      formData.append('luggageType', this.formData.luggageType);
+  formData.append('phone', this.formData.phone);
+      formData.append('hasPet', hasPet);
+      console.log(formData)
+      try {
+        await this.axios.post(`${this.localhost}ride`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`
+
+          }
+        }
+        );
+      }
+      catch (error) {
+        console.error('Erreur lors de la confirmation de la course:', error);
+        alert('Erreur lors de la confirmation de la course. Veuillez réessayer.');
+        return;
+      }
+
+
+      alert(`🎉 Course confirmée !\nPrix: ${price} €\nDurée: ${duration} minutes`);
+    },
+
   },
   watch: {
     'formData.vehicle': function () {

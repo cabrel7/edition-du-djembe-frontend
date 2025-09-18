@@ -33,7 +33,17 @@ const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeUR
       
       const data = await response.json();
       console.log('Données de reverse géocodage:', data);
-      return data.namedetails.name?data.namedetails.name?data.namedetails.name:'':data.display_name || 'Adresse non trouvée';
+      let name=''
+      if(data.namedetails){
+        name=data.namedetails.name
+      }else if(data.name){
+        name=data.name
+
+      }else{
+        name=data.display_name
+      }
+
+      return name;
     } catch (error) {
       console.error('Erreur de reverse géocodage:', error);
       return 'Adresse non disponible';

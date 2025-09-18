@@ -73,7 +73,7 @@
                 </div>
               </div>
 
-             
+
             </div>
 
             <!-- Lieux populaires -->
@@ -126,135 +126,131 @@
             </div>
 
             <!-- Informations de course -->
-             
-            <div v-if="routeInfo"  class="mt-8 bg-white rounded-xl w-full shadow-lg p-6">
+
+            <div v-if="routeInfo" class="mt-8 bg-white rounded-xl w-full shadow-lg p-6">
               <h3 class="text-2xl font-bold text-gray-900 mb-4 text-center">📊 Détails de la course</h3>
-             <p class="">Choisissez un vehicule</p>
+              <p class="">Choisissez un vehicule</p>
               <div class="flex  justify-center items-center  gap-4">
-            <label
-              :class="selected?'border-[#3d259d] border-2 text-gray-800 bg-[#3B82F6]/10' : 'bg-white  text-black hover:bg-gray-300'"
-             
-              class="bg-white relative rounded-md overflow-hidden border shadow-md hover:shadow-xl transition  w-2/4 ">
-            
-              <input type="radio"  v-model="selected" class="hidden " />
-            
-                <img class="w-full   " src="../../img/vue-d-une-voiture-en-3d.jpg" alt="">
+                <label v-for="car in cars" :key="car.id"
+                  :class="car.id == selected.id? 'border-[#3d259d] border-2 text-gray-800 bg-[#3B82F6]/10' : 'bg-white  text-black hover:bg-gray-300'"
+                  class="bg-white relative rounded-md overflow-hidden border shadow-md hover:shadow-xl transition  w-2/4 ">
+                  <input type="radio" v-model="selected"
+                    :value="setvalue(car.id, calculatePrice(routeInfo.distance, car.tarification_kilometrage, car.tarification_heure))"
+                    class="hidden " />
+
+                  <img class="w-full object-cover h-48  " :src="car.image" alt="">
+
+
+                  <div
+                    class="bottom-0 justify-center text-center font-semibold text-lg text-gray-300 absolute flex flex-col bg-gradient-to-t mt-2 from-black/60 to-gray-600/40 w-full  shadow-2xl rounded-t-md  h-1/3  z-50 bg-opacity-65">
+                    <p>{{ car.name }}</p>
+                    <p>{{ calculatePrice(routeInfo.distance, car.tarification_kilometrage, car.tarification_heure) }} €
+                    </p>
+                  </div>
+
+
+                </label>
+
+
+              </div>
+               <div class="grid md:grid-cols-1 gap-6">
               
 
-              <div class="bottom-0 justify-center text-center font-semibold text-lg text-gray-300 absolute flex flex-col bg-gradient-to-t mt-2 from-black/60 to-gray-600/40 w-full  shadow-2xl rounded-t-md  h-1/3  z-50 bg-opacity-65">
-                <p>berline</p>
-                <p>{{calculatePrice(routeInfo.distance)}} €</p>
-              </div>
-
-             
-            </label>
-               <label
-              :class="selected?'border-[#3d259d] border-2 text-gray-800 bg-[#3B82F6]/10' : 'bg-white  text-black hover:bg-gray-300'"
-             
-              class="bg-white relative rounded-md overflow-hidden border shadow-md hover:shadow-xl transition  w-2/4 ">
-            
-              <input type="radio"  v-model="selected" class="hidden " />
-            
-                <img class="w-full   " src="../../img/vue-d-une-voiture-en-3d.jpg" alt="">
-              
-
-              <div class="bottom-0 justify-center text-center font-semibold text-lg text-gray-300 absolute flex flex-col bg-gradient-to-t mt-2 from-black/60 to-gray-600/40 w-full  shadow-2xl rounded-t-md  h-1/3  z-50 bg-opacity-65">
-                <p>van</p>
-                <p>{{calculatePrice(routeInfo.distance)}} €</p>
-              </div>
-
-             
-            </label>
-            
-          </div>
-
-               <!-- Numéro de vol/train -->
-         
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700">Numéro de vol ou train (optionnel)</label>
-              <input placeholder="Ex: AF123 ou TGV1234" v-model="formData.flightTrainNumber"
-                class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
-            </div>
-
-            <!-- Arrêt intermédiaire -->
-            
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-gray-700">Arrêt intermédiaire (optionnel)</label>
-              <input placeholder="Adresse de l'arrêt intermédiaire" v-model="formData.intermediateStop"
-                class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
-            </div>
-            <!-- Sièges enfants -->
-            <div class="space-y-2 mt-2">
-              <label class="flex items-center">
-                <input type="checkbox" v-model="seat"
-                  class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2" />
-                <span class="text-sm font-medium text-gray-700">Je veux des sieges enfant</span>
-              </label>
-            </div>
-            <div v-if="seat" class="space-y-4 duration-500">
-             
-              <div class="grid md:grid-cols-2 gap-4">
-                <div class="space-y-2">
-                  <label class="text-sm font-medium text-gray-700">Siège bébé (0-2 ans)</label>
-                  <input v-model="formData.babySeats" type="number" :max="max2"
-                    class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
-
-
-                </div>
-
-                <div class="space-y-2 ">
-                  <label class="text-sm font-medium text-gray-700">Siège enfant (3-7 ans)</label>
-                  <input v-model="formData.childSeats" type="number" :max="max1"
-                    class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
-
-                </div>
-              </div>
-              <span class="text-sm font-medium text-red-600"> NB: 1 siege enfant=15eu</span>
-            </div>
-
-            <!-- Bagages -->
-            <div class="space-y-2 mt-2 ">
-              <label class="flex items-center">
-                <input type="checkbox" v-model="bagage"
-                  class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2" />
-                <span class="text-sm font-medium text-gray-700">J'ai des bagages</span>
-              </label>
-            </div>
-            <div v-if="bagage" class="space-y-4 duration-500">
-              
-              <div class="grid md:grid-cols-2 gap-4">
-                <div class="space-y-2">
-                  <label class="text-sm font-medium text-gray-700">Nombre de bagages</label>
-                  <input v-model="formData.luggageCount"
-                  type="number"
-                  :max="maxLuggage"
-                    class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3"/>
-                  
-                </div>
-
-                <div class="space-y-2 ">
-                  <label class="text-sm font-medium text-gray-700">Type de bagages</label>
-                  <select v-model="formData.luggageType"
-                    class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3">
-                    <option value="normal">Normaux</option>
-                    <option value="volumineux">Volumineux</option>
-                    <option value="mixte">Mixte</option>
-                  </select>
-                </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-gray-700">numero de telephone</label>
+                <input v-model="formData.phone"
+                type="tel"
+                
+                  class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3"/>
+                 
               </div>
             </div>
 
-            <!-- Animal de compagnie -->
-            <div class="space-y-2 mt-2">
-              <label class="flex items-center">
-                <input type="checkbox" v-model="formData.hasPet"
-                  class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2" />
-                <span class="text-sm font-medium text-gray-700">Je voyage avec un animal de compagnie</span>
-              </label>
-            </div>
+              <!-- Numéro de vol/train -->
+
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-gray-700">Numéro de vol ou train (optionnel)</label>
+                <input placeholder="Ex: AF123 ou TGV1234" v-model="formData.flightTrainNumber"
+                  class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
+              </div>
+
+              <!-- Arrêt intermédiaire -->
+
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-gray-700">Arrêt intermédiaire (optionnel)</label>
+                <input placeholder="Adresse de l'arrêt intermédiaire" v-model="formData.intermediateStop"
+                  class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
+              </div>
+              <!-- Sièges enfants -->
+              <div class="space-y-2 mt-2">
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="seat"
+                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2" />
+                  <span class="text-sm font-medium text-gray-700">Je veux des sieges enfant</span>
+                </label>
+              </div>
+              <div v-if="seat" class="space-y-4 duration-500">
+
+                <div class="grid md:grid-cols-2 gap-4">
+                  <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-700">Siège bébé (0-2 ans)</label>
+                    <input v-model="formData.babySeats" type="number" min="0" :maxlength="1" :max="max2"
+                      class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
+
+
+                  </div>
+
+                  <div class="space-y-2 ">
+                    <label class="text-sm font-medium text-gray-700">Siège enfant (3-7 ans)</label>
+                    <input v-model="formData.childSeats" type="number" min="0" :max="max1" :maxlength="1"
+                      class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
+
+                  </div>
+                </div>
+                <span class="text-sm font-medium text-red-600"> NB: 1 siege enfant=15eu</span>
+              </div>
+
+              <!-- Bagages -->
+              <div class="space-y-2 mt-2 ">
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="bagage"
+                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2" />
+                  <span class="text-sm font-medium text-gray-700">J'ai des bagages</span>
+                </label>
+              </div>
+              <div v-if="bagage" class="space-y-4 duration-500">
+
+                <div class="grid md:grid-cols-2 gap-4">
+                  <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-700">Nombre de bagages</label>
+                    <input v-model="formData.luggageCount" type="number" :max="maxLuggage"
+                      class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
+
+                  </div>
+
+                  <div class="space-y-2 ">
+                    <label class="text-sm font-medium text-gray-700">Type de bagages</label>
+                    <select v-model="formData.luggageType"
+                      class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3">
+                      <option value="normal">Normaux</option>
+                      <option value="volumineux">Volumineux</option>
+                      <option value="mixte">Mixte</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Animal de compagnie -->
+              <div class="space-y-2 mt-2">
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="formData.hasPet"
+                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2" />
+                  <span class="text-sm font-medium text-gray-700">Je voyage avec un animal de compagnie</span>
+                </label>
+              </div>
               <button @click="confirmRide"
                 class="w-full bg-gradient-to-r mt-2 from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:scale-[1.02] transition-transform">
-                🚗 Confirmer la course
+                Confirmer la course
               </button>
             </div>
           </div>
@@ -264,73 +260,6 @@
     </section>
 
 
-
-    <!-- Vehicle Selection -->
-    <section class="py-16 px-4 w-full">
-      <div class="container mx-auto w-full">
-        <div class="text-center mb-12">
-          <h2 class="text-4xl font-bold text-gray-900 mb-4">Nos Véhicules</h2>
-          <p class="text-lg text-gray-600">Choisissez le véhicule qui correspond à vos besoins</p>
-        </div>
-
-        <div class="flex  justify-center w-full lg:gap-8 md:gap-2 gap-y-2 flex-wrap  ">
-          <!-- Vehicle Cards -->
-          <div
-            class="relative overflow-hidden lg:w-[35%] md:w-[49%] sm:w-full w-full transition-all duration-300 hover:shadow-xl hover:scale-105 rounded-xl border border-gray-200 bg-white">
-            <div class="">
-              <div class=" mb-2"> <img class="h-64 object-cover w-full" src="../../img/vue-d-une-voiture-en-3d.jpg"
-                  alt=""></div>
-              <div class="p-6 text-center">
-                <h3 class="text-2xl font-bold text-gray-900 mb-2">Berline E-class</h3>
-                <p class="text-gray-600 mb-4">Confort et élégance pour vos déplacements</p>
-                <div class="text-3xl font-bold text-blue-600 mb-6">À partir de 50-60€</div>
-                <ul class="space-y-2 mb-6 text-sm text-gray-600">
-                  <li class="flex items-center justify-center"><span
-                      class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>1-3 passagers</li>
-                  <li class="flex items-center justify-center"><span
-                      class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>WiFi gratuit</li>
-                  <li class="flex items-center justify-center"><span
-                      class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>Eau offerte</li>
-                </ul>
-                <button
-                  class="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md hover:scale-105 transition-all duration-200">
-                  Choisir ce véhicule
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Vehicle Card 2 (Popular) -->
-          <div
-            class="relative overflow-hidden  lg:w-[35%] md:w-[49%] sm:w-full w-full transition-all duration-300 hover:shadow-xl hover:scale-105 rounded-xl border-2 border-blue-500 bg-white">
-            <div class="absolute top-4 right-4 bg-blue-600 text-white text-xs font-medium px-2.5 py-0.5 rounded-full">
-              Populaire</div>
-            <div class="w-full">
-              <div class=" mb-2"> <img class="h-64 object-cover w-full" src="../../img/van.jpg" alt=""></div>
-              <div class="p-6 text-center">
-                <h3 class="text-2xl font-bold text-gray-900 mb-2">Van V-class</h3>
-                <p class="text-gray-600 mb-4">Espace et confort pour les groupes</p>
-                <div class="text-3xl font-bold text-blue-600 mb-6">À partir de 60€</div>
-                <ul class="space-y-2 mb-6 text-sm text-gray-600">
-                  <li class="flex items-center justify-center"><span
-                      class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>1-6 passagers</li>
-                  <li class="flex items-center justify-center"><span
-                      class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>Bagages XXL</li>
-                  <li class="flex items-center justify-center"><span
-                      class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>Écran TV</li>
-                </ul>
-                <button
-                  class="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md hover:scale-105 transition-all duration-200">
-                  Choisir ce véhicule
-                </button>
-              </div>
-            </div>
-          </div>
-
-
-        </div>
-      </div>
-    </section>
 
     <!-- Services -->
     <section class="py-16 px-4 bg-gray-900 text-white">
@@ -371,6 +300,15 @@
   </div>
 </template>
 
+
+
+
+
+
+
+
+
+
 <script>
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -378,6 +316,7 @@ import { RoutingService } from '../../services/routing';
 import { GeocodingService } from '../../services/geocoding';
 import { parisLocations } from '../../assets/paris-data';
 import { LocateIcon } from 'lucide-vue-next';
+// import { mapGetters } from 'vuex';
 // Correction des icônes Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -392,16 +331,21 @@ export default {
   data() {
     return {
       // Données de la carte
-      maxseat:3,
-      selected:null,
+      cars: [],
+      maxseat: 3,
+      selected: {
+        id:null,
+        price:0
+      },
       maxPassengers: 6,
       maxLuggage: 7,
-       bagage: false,
+      bagage: false,
       seat: false,
-       formData: {
-        
+      formData: {
+
         date: '',
         time: '',
+        phone:'',
         flightTrainNumber: '',
         intermediateStop: '',
         vehicle: '',
@@ -416,7 +360,7 @@ export default {
         email: '',
         phone: '',
         notes: '',
-     
+
 
 
       },
@@ -440,6 +384,7 @@ export default {
       showPickupSuggestions: false,
       showDestinationSuggestions: false,
       searchTimeout: null,
+      localhost: this.$store.state.localhost,
 
       // Catégories populaires
       popularCategories: {
@@ -453,29 +398,45 @@ export default {
       interface: null
     }
   },
-  computed:{
-      max1(){
-        return this.maxseat-this.formData.babySeats
-      },
-      max2(){
-        return this.maxseat-this.formData.childSeats
-      }
+  computed: {
+
+    max1() {
+      return this.maxseat - this.formData.babySeats
+    },
+    max2() {
+      return this.maxseat - this.formData.childSeats
+    },
+    cars() {
+      return this.$store.state.cars
+    }
   },
   mounted() {
+
     this.initMap();
     this.interface = document.querySelector('.interface')
-    this.scroll()
-    
+    // this.scroll()
+
+    this.locateUser();
+
+
   },
   beforeUnmount() {
     this.destroyMap();
   },
   methods: {
+  
+    setvalue(id, price) {
+      let test
+      test={id:id,price:price};
+     
+      return test
+      
+    },
     scroll() {
-      let tes=this.interface.scrollHeight
+      let tes = this.interface.scrollHeight
       if (this.interface) {
         this.interface.scrollTop = tes;
-        console.log( this.interface.scrollTop)
+
       }
     },
     updatePassengerOptions() {
@@ -568,16 +529,16 @@ export default {
 
       const parisBounds = this.getParisBounds();
       L.rectangle(parisBounds, {
-        color: '#ff6b35',
+        // color: '#ff6b35',
         weight: 2,
         opacity: 0.3,
         fillOpacity: 0.1,
-        fillColor: '#ff6b35'
+        fillColor: '#1e40af'
       }).addTo(this.map);
     },
 
     async searchAddress(type) {
-      
+
       const query = type === 'pickup' ? this.pickup : this.destination;
 
       if (query.length < 2) {
@@ -740,20 +701,76 @@ export default {
       }
     },
 
-    confirmRide() {
+    async confirmRide() {
       if (!this.routeInfo) return;
-
-      const price = this.calculatePrice(this.routeInfo.distance);
+      if (!this.selected) {
+        alert('selectionner un vehicule');
+        return
+      }
+      let price =this.selected.price
+    let hasPet =this.formData.hasPet==true?1:0
+       
+      let token = localStorage.getItem('token')
       const duration = Math.round(this.routeInfo.duration / 60);
+      let formData = new FormData();
+      formData.append('pickup', this.pickup);
+      formData.append('destination', this.destination);
+      formData.append('pickupCoords', this.pickupLocation);
+      formData.append('destinationCoords', this.destinationLocation);
+      formData.append('distanceMeters', (this.routeInfo.distance/1000).toFixed(2));
+      formData.append('durationMinutes', duration);
+      formData.append('price', price);
+      formData.append('type', 'course');
+      formData.append('rideDateTime', this.rideDateTime);
+      formData.append('vehicle', this.selected.id);
+      formData.append('flightTrainNumber', this.formData.flightTrainNumber);
+      formData.append('intermediateStop', this.formData.intermediateStop);
+      formData.append('babySeats', this.formData.babySeats);
+      formData.append('childSeats', this.formData.childSeats);
+      formData.append('luggageCount', this.formData.luggageCount);
+      formData.append('luggageType', this.formData.luggageType);
+
+      formData.append('hasPet', hasPet);
+      
+
+      formData.append('phone', this.formData.phone);
+      console.log(formData)
+      try {
+        await this.axios.post(`${this.localhost}ride`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`
+
+          }
+        }
+        );
+      }
+      catch (error) {
+        console.error('Erreur lors de la confirmation de la course:', error);
+        alert('Erreur lors de la confirmation de la course. Veuillez réessayer.');
+        return;
+      }
+
 
       alert(`🎉 Course confirmée !\nPrix: ${price} €\nDurée: ${duration} minutes`);
     },
 
-    calculatePrice(distanceMeters) {
-      const distanceKm = distanceMeters / 1000;
-      const basePrice = 2.50;
-      const pricePerKm = 1.80;
-      return (basePrice + (distanceKm * pricePerKm)).toFixed(2);
+    calculatePrice(distanceMeters, pricePerKm, pricePerhour) {
+      let duration = Math.round(this.routeInfo.duration / 120)
+      let price = 0
+      if (duration > 30) {
+        price = (distanceMeters / 1000) * pricePerKm
+
+      } else {
+        price = duration * pricePerhour
+      }
+      if (this.formData.childSeats) {
+        price += this.formData.childSeats * 15
+      }
+      if (this.formData.babySeats) {
+        price += this.formData.babySeats * 15
+      }
+
+      return price.toFixed(2);
     },
 
     locateUser() {
@@ -776,7 +793,7 @@ export default {
             .catch(err => console.error('Erreur géocodage inverse:', err));
           this.pickup = location.name;
 
-          this.addMarker([latitude, longitude], 'pikcup');
+          this.addMarker([latitude, longitude], 'pickup');
 
           this.safeSetView([latitude, longitude], 15);
         },
@@ -813,6 +830,11 @@ export default {
   }
 }
 </script>
+
+
+
+
+
 
 <style scoped>
 .vtc-paris-app {

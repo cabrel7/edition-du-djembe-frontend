@@ -7,17 +7,15 @@
           <h1 class="text-2xl font-bold text-gray-900">Interface Chauffeur</h1>
           <p class="text-gray-600">Bonjour Pierre, bon service aujourd'hui !</p>
         </div>
-        
+
         <div class="flex items-center gap-4">
-          <button
-            @click="toggleOnlineStatus"
-            :class="[isOnline ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700', 'text-white px-4 py-2 rounded-md flex items-center']"
-          >
+          <button @click="toggleOnlineStatus"
+            :class="[isOnline ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700', 'text-white px-4 py-2 rounded-md flex items-center']">
             <CheckCircle v-if="isOnline" class="w-4 h-4 mr-2" />
             <XCircle v-else class="w-4 h-4 mr-2" />
             {{ isOnline ? 'En ligne' : 'Hors ligne' }}
           </button>
-          
+
           <button class="border border-gray-300 px-4 py-2 rounded-md flex items-center">
             <Settings class="w-4 h-4 mr-2" />
             Paramètres
@@ -39,7 +37,7 @@
           </div>
         </div>
       </div>
-      
+
       <div class="border rounded-lg">
         <div class="p-4">
           <div class="flex items-center justify-between">
@@ -51,7 +49,7 @@
           </div>
         </div>
       </div>
-      
+
       <div class="border rounded-lg">
         <div class="p-4">
           <div class="flex items-center justify-between">
@@ -63,7 +61,7 @@
           </div>
         </div>
       </div>
-      
+
       <div class="border rounded-lg">
         <div class="p-4">
           <div class="flex items-center justify-between">
@@ -80,26 +78,20 @@
     <!-- Main Content -->
     <div class="space-y-4">
       <div class="flex border-b">
-        <button 
-          @click="activeTab = 'rides'"
-          :class="[activeTab === 'rides' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600', 'px-4 py-2']"
-        >
+        <button @click="activeTab = 'rides'"
+          :class="[activeTab === 'rides' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600', 'px-4 py-2']">
           Courses en attente
         </button>
-        <button 
-          @click="activeTab = 'history'"
-          :class="[activeTab === 'history' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600', 'px-4 py-2']"
-        >
+        <button @click="activeTab = 'history'"
+          :class="[activeTab === 'history' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600', 'px-4 py-2']">
           Historique
         </button>
-        <button 
-          @click="activeTab = 'schedule'"
-          :class="[activeTab === 'schedule' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600', 'px-4 py-2']"
-        >
+        <button @click="activeTab = 'schedule'"
+          :class="[activeTab === 'schedule' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600', 'px-4 py-2']">
           Planning
         </button>
       </div>
-      
+
       <div v-if="activeTab === 'rides'">
         <div class="border rounded-lg">
           <div class="border-b p-4">
@@ -128,7 +120,7 @@
                     {{ ride.price }}
                   </span>
                 </div>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                   <div class="flex items-center text-sm">
                     <MapPin class="w-4 h-4 mr-2 text-blue-600" />
@@ -145,7 +137,7 @@
                     <span>{{ ride.time }} • {{ ride.distance }}</span>
                   </div>
                 </div>
-                
+
                 <div class="flex gap-2">
                   <button class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
                     Accepter la course
@@ -159,7 +151,7 @@
           </div>
         </div>
       </div>
-      
+
       <div v-if="activeTab === 'history'">
         <div class="border rounded-lg">
           <div class="border-b p-4">
@@ -170,7 +162,7 @@
           </div>
         </div>
       </div>
-      
+
       <div v-if="activeTab === 'schedule'">
         <div class="border rounded-lg">
           <div class="border-b p-4">
@@ -187,6 +179,7 @@
 
 <script>
 export default {
+
   data() {
     return {
       isOnline: false,
@@ -218,8 +211,29 @@ export default {
         earnings: 320,
         distance: 185,
         rating: 4.9
-      }
+      },
+      // user: null
+      id: 2
     }
+
+
+  },
+  computed: {
+    user() {
+      return this.$store.state.user;
+    }
+  },
+  async mounted() {
+    this.$store.dispatch('fetchdata');
+ window.Echo.private(`notif.${this.id}`)
+    .listen('.notif', (e) => {
+      console.log("🚖 Nouvelle réservation:", e);
+      alert(`Nouvelle course !
+Départ: ${e.pickup}
+Arrivée: ${e.destination}
+Prix estimé: ${e.prix}€
+Heure: ${e.heure}`);
+    });
   },
   methods: {
     toggleOnlineStatus() {

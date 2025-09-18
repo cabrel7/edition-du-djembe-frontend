@@ -131,7 +131,7 @@
                 <input
                   id="admin-email"
                   type="email"
-                  placeholder="admin@vtcparis.com"
+                  placeholder="user@g.com"
                   v-model="email"
                   class="w-full border border-gray-200 rounded-md px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   required
@@ -150,7 +150,7 @@
               </div>
               
               <button type="submit" class="w-full h-10 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors">
-                Accéder au dashboard admin
+                se connecter
               </button>
             </form>
           </div>
