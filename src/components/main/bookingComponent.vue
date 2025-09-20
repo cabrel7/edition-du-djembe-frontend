@@ -76,7 +76,7 @@
                 </div>
               </div>
             </div>
-             <div class="mt-4">
+            <div class="mt-4">
               <h3 class="text-sm font-medium text-gray-700 mb-2">Vous partez de ?...</h3>
               <div class="flex flex-wrap gap-2">
                 <button v-for="(category, categoryName) in popularCategories" :key="categoryName"
@@ -86,7 +86,7 @@
                 </button>
               </div>
             </div>
-              <div v-if="showCategory" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div v-if="showCategory" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div class="bg-white rounded-lg p-6 max-w-md w-full max-h-96 overflow-y-auto">
                 <h3 class="text-lg font-bold mb-4">{{ selectedCategory }} à Paris</h3>
                 <div class="space-y-2">
@@ -116,13 +116,13 @@
               </div>
             </div>
 
-           
 
-           <div v-if="routeInfo">
-                       <p class="">Choisissez un vehicule</p>
-              <div  class="flex  justify-center items-center  gap-4">
+
+            <div v-if="routeInfo">
+              <p class="">Choisissez un vehicule</p>
+              <div class="flex  justify-center items-center  gap-4">
                 <label v-for="car in cars" :key="car.id"
-                  :class="car.id == selected.id? 'border-[#3d259d] border-2 text-gray-800 bg-[#3B82F6]/10' : 'bg-white  text-black hover:bg-gray-300'"
+                  :class="car.id == selected.id ? 'border-[#3d259d] border-2 text-gray-800 bg-[#3B82F6]/10' : 'bg-white  text-black hover:bg-gray-300'"
                   class="bg-white relative rounded-md overflow-hidden border shadow-md hover:shadow-xl transition  w-2/4 ">
                   <input type="radio" v-model="selected"
                     :value="setvalue(car.id, calculatePrice(routeInfo.distance, car.tarification_kilometrage, car.tarification_heure))"
@@ -143,9 +143,9 @@
 
 
               </div>
-              </div>
- <!-- Numéro de vol/train -->
-         
+            </div>
+            <!-- Numéro de vol/train -->
+
             <div class="space-y-2">
               <label class="text-sm font-medium text-gray-700">Numéro de vol ou train (optionnel)</label>
               <input placeholder="Ex: AF123 ou TGV1234" v-model="formData.flightTrainNumber"
@@ -153,7 +153,7 @@
             </div>
 
             <!-- Arrêt intermédiaire -->
-            
+
             <div class="space-y-2">
               <label class="text-sm font-medium text-gray-700">Arrêt intermédiaire (optionnel)</label>
               <input placeholder="Adresse de l'arrêt intermédiaire" v-model="formData.intermediateStop"
@@ -201,11 +201,9 @@
               <div class="grid md:grid-cols-2 gap-4">
                 <div class="space-y-2">
                   <label class="text-sm font-medium text-gray-700">Nombre de bagages</label>
-                  <input v-model="formData.luggageCount"
-                  type="number"
-                  :max="maxLuggage"
-                    class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3"/>
-                  
+                  <input v-model="formData.luggageCount" type="number" :max="maxLuggage"
+                    class="h-12 w-full border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3" />
+
                 </div>
 
                 <div class="space-y-2">
@@ -236,11 +234,11 @@
           </div>
 
           <!-- Step 2: Personal Info -->
-          <div v-if="step === 2" class="space-y-6">
-            
+          <div v-show="step === 2" class="space-y-6">
+
 
             <div class="grid md:grid-cols-1 gap-6">
-              
+
 
               <div class="space-y-2">
                 <label class="text-sm font-medium text-gray-700">Téléphone</label>
@@ -268,7 +266,7 @@
           </div>
 
           <!-- Step 3: Confirmation & Payment -->
-          <div v-if="step === 3" class="space-y-6">
+          <div v-show="step === 3" class="space-y-6">
             <div class="bg-gray-50 border border-gray-200 rounded-xl p-6">
               <h3 class="text-lg font-semibold mb-4">Récapitulatif de votre réservation</h3>
               <div class="space-y-3 text-sm">
@@ -318,12 +316,16 @@
                 </div>
               </div>
             </div>
-             <h3 class="text-md text-red-500">nb: vous devez payer 50% des montant de la course et le reste lorsque la couse sera terminer</h3>
+            <h3 class="text-md text-red-500">nb: vous devez payer 50% des montant de la course et le reste lorsque la
+              couse sera terminer</h3>
 
             <div class="space-y-4">
               <h3 class="text-lg font-semibold">Informations de paiement</h3>
-             
-                    <div id="card-element"></div>
+              <div id="card-number"></div>
+              <div id="card-expiry"></div>
+              <div id="card-cvc"></div>
+
+              <div id="express-checkout-element"></div>
 
             </div>
 
@@ -367,7 +369,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 export default {
-    components: { LocateIcon },
+  components: { LocateIcon },
   data() {
     return {
       stripe: null,
@@ -377,23 +379,23 @@ export default {
       bagage: false,
       seat: false,
       step: 1,
-      maxseat:3,
+      maxseat: 3,
       selected: {
-        id:null,
-        price:0
+        id: null,
+        price: 0
       },
       maxPassengers: 6,
       maxLuggage: 7,
       pickup: '',
-        destination: '',
-        pickupLocation: null,
+      destination: '',
+      pickupLocation: null,
       destinationLocation: null,
       routeInfo: null,
       formData: {
-        
+
         date: '',
         time: '',
-        phone:'',
+        phone: '',
         flightTrainNumber: '',
         intermediateStop: '',
         vehicle: '',
@@ -408,11 +410,11 @@ export default {
         email: '',
         phone: '',
         notes: '',
-     
+
 
 
       },
-      
+
       // Données du formulaire
       pickup: '',
       destination: '',
@@ -434,48 +436,74 @@ export default {
       },
       showCategory: null,
       selectedCategory: '',
-      localhost:this.$store.state.localhost
-
+      localhost: this.$store.state.localhost,
+      payement: null
     }
   },
-  
-  computed:{
-      max1(){
-        return this.maxseat-this.formData.babySeats
-      },
-      max2(){
-        return this.maxseat-this.formData.childSeats
-      },
-       cars() {
+
+  computed: {
+    max1() {
+      return this.maxseat - this.formData.babySeats
+    },
+    max2() {
+      return this.maxseat - this.formData.childSeats
+    },
+    cars() {
       return this.$store.state.cars
     }
 
   },
   async mounted() {
     this.locateUser();
-   this.initStripe()
+    this.initStripe();
   },
   methods: {
-   async initStripe(){
-        try{
+    async initStripe() {
+      try {
         this.stripe = await loadStripe("pk_live_51S7dVELML18ba1cuj41VEX1xpslbifshJxXgIEmLGjcbl6qnzeVTLjDPUaw3s2tFkOOhoT3mjen85bHsJpTtTjMO006Y8gPh4S"); // ta clé publique
-    const elements = this.stripe.elements();
-    this.cardElement = elements.create("card");
-    if(window.onload){
-      console.log(this.cardElement)
- this.cardElement.mount("#card-element");
-    }
-   
-  }catch(error){
-    console.log(error)
-  }
+
+        const expressCheckoutOptions = {
+          buttonType: {
+            applePay: 'buy',
+            googlePay: 'buy',
+            paypal: 'buynow',
+            klarna: 'pay',
+          }
+        }
+        const elements = this.stripe.elements({
+          locale: 'fr',
+          mode: 'payment',
+          amount: 1099,
+          currency: 'eur',
+        })
+        const cardNumber = elements.create("cardNumber");
+        cardNumber.mount("#card-number");
+
+        const cardExpiry = elements.create("cardExpiry");
+        cardExpiry.mount("#card-expiry");
+
+        const cardCvc = elements.create("cardCvc");
+        cardCvc.mount("#card-cvc");
+        const expressCheckoutElement = elements.create(
+          'expressCheckout',
+          expressCheckoutOptions
+        )
+
+        expressCheckoutElement.mount("#express-checkout-element");
+
+
+
+
+      } catch (error) {
+        console.log(error)
+      }
 
     },
-     async handleSubmit() {
+    async handleSubmit() {
       // Appel backend Laravel
-      await axios.post(this.localhost+"payement", {
-        
-       
+      await axios.post(this.localhost + "payement", {
+
+
       }).then(response => {
         console.log("Réservation enregistrée:", response.data);
       }).catch(error => {
@@ -505,9 +533,9 @@ export default {
         alert('selectionner un vehicule');
         return
       }
-      let price =this.selected.price
-    let hasPet =this.formData.hasPet==true?1:0
-       
+      let price = this.selected.price
+      let hasPet = this.formData.hasPet == true ? 1 : 0
+
       let token = localStorage.getItem('token')
       const duration = Math.round(this.routeInfo.duration / 60);
       let formData = new FormData();
@@ -515,7 +543,7 @@ export default {
       formData.append('destination', this.destination);
       formData.append('pickupCoords', this.pickupLocation);
       formData.append('destinationCoords', this.destinationLocation);
-      formData.append('distanceMeters', (this.routeInfo.distance/1000).toFixed(2));
+      formData.append('distanceMeters', (this.routeInfo.distance / 1000).toFixed(2));
       formData.append('durationMinutes', duration);
       formData.append('price', price);
       formData.append('type', 'course');
@@ -533,7 +561,7 @@ export default {
       formData.append('date', date);
 
       formData.append('phone', this.formData.phone);
-      
+
       try {
         await this.axios.post(`${this.localhost}ride`, formData, {
           headers: {
@@ -555,12 +583,12 @@ export default {
 
     setvalue(id, price) {
       let test
-      test={id:id,price:price};
-     
+      test = { id: id, price: price };
+
       return test
-      
+
     },
-    
+
     getDefaultDateTime() {
       const now = new Date();
       now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -625,22 +653,23 @@ export default {
         this.pickup = address;
         this.pickupLocation = coords;
         this.showPickupSuggestions = false;
-       
+
       } else {
         this.destination = address;
         this.destinationLocation = coords;
         this.showDestinationSuggestions = false;
-       
+
       }
-       if (this.pickupLocation && this.destinationLocation) {
+      if (this.pickupLocation && this.destinationLocation) {
         this.calculateRoute();
+
       }
 
 
-     
+
     },
     async calculateRoute() {
-      if (!this.pickupLocation || !this.destinationLocation ) return;
+      if (!this.pickupLocation || !this.destinationLocation) return;
 
       try {
         const route = await RoutingService.calculateRoute(
@@ -652,20 +681,20 @@ export default {
 
         this.routeInfo = route;
 
-      
 
-       
-        
+
+
+
 
       } catch (error) {
         console.error('Erreur calcul itinéraire:', error);
       }
     },
 
-   
-  
 
-     calculatePrice(distanceMeters, pricePerKm, pricePerhour) {
+
+
+    calculatePrice(distanceMeters, pricePerKm, pricePerhour) {
       let duration = Math.round(this.routeInfo.duration / 120)
       let price = 0
       if (duration > 30) {
@@ -729,7 +758,7 @@ export default {
       this.destination = location.name;
       this.destinationLocation = [location.lat, location.lng];
       this.showCategory = false;
-     
+
     },
 
     getArrondissementName(arrondissementId) {
@@ -737,13 +766,19 @@ export default {
       const arr = parisLocations.arrondissements.find(a => a.id === arrondissementId);
       return arr ? arr.name : '';
     }
-  ,
+    ,
     nextStep() {
-      this.step += 1;
-    },
-    prevStep() {
-      this.step -= 1;
-    },
+      if (this.step === 1 && (!this.pickup || !this.destination)) {
+        alert("Veuillez sélectionner le point de départ et la destination.");
+        return;
+      }
+      if (this.step === 2 && !this.formData.phone) {
+        alert("Veuillez renseigner votre téléphone.");
+        return;
+      }
+      this.step++;
+    }
+    ,
     getVehicleName(vehicleType) {
       const vehicles = {
         eclass: 'Berline E-class',
@@ -774,20 +809,16 @@ export default {
         this.maxLuggage = 3;
       }
     },
-    calculateTotal() {
-      let basePrice = 75; // Prix de base
-      let extraSeats = (parseInt(this.formData.babySeats) + parseInt(this.formData.childSeats)) * 15;
-      return basePrice + extraSeats;
-    },
-     async confirmRide() {
+
+    async confirmRide() {
       if (!this.routeInfo) return;
       if (!this.selected) {
         alert('selectionner un vehicule');
         return
       }
-      let price =this.selected.price
-    let hasPet =this.formData.hasPet==true?1:0
-       
+      let price = this.selected.price
+      let hasPet = this.formData.hasPet == true ? 1 : 0
+
       let token = localStorage.getItem('token')
       const duration = Math.round(this.routeInfo.duration / 60);
       let formData = new FormData();
@@ -795,7 +826,7 @@ export default {
       formData.append('destination', this.destination);
       formData.append('pickupCoords', this.pickupLocation);
       formData.append('destinationCoords', this.destinationLocation);
-      formData.append('distanceMeters', (this.routeInfo.distance/1000).toFixed(2));
+      formData.append('distanceMeters', (this.routeInfo.distance / 1000).toFixed(2));
       formData.append('durationMinutes', duration);
       formData.append('price', price);
       formData.append('type', 'course');
@@ -807,7 +838,7 @@ export default {
       formData.append('childSeats', this.formData.childSeats);
       formData.append('luggageCount', this.formData.luggageCount);
       formData.append('luggageType', this.formData.luggageType);
-  formData.append('phone', this.formData.phone);
+      formData.append('phone', this.formData.phone);
       formData.append('hasPet', hasPet);
       console.log(formData)
       try {
@@ -842,6 +873,7 @@ export default {
 .gradient-primary {
   background-image: linear-gradient(to right, #3b82f6, #8b5cf6);
 }
+
 .map-controls {
   position: absolute;
   top: 15px;
