@@ -2,35 +2,53 @@
   <router-view />
 </template>
 <style>
-      body{
-      overflow-y: auto;
-      }
-  
-      /* Scrollbar entière */
-      body:-webkit-scrollbar {
-      width: 2px;
-      }
-  
-      /* Fond de la scrollbar */
-      body:-webkit-scrollbar-track {
-          background: #f0f0f0;   /*Couleur de fond*/
-          border-radius: 4px;
-      }
-  
-      /* Curseur (thumb) */
-      body:-webkit-scrollbar-thumb {
-     background-color: rgb(93 85 245 / 0.3);;  /* Couleur de la barre */
-      border-radius: 8px;
-      border: 1px solid #f0f0f0; /* Crée un effet de marge */
-      }
-  
-      /* Hover du curseur */
-      body:-webkit-scrollbar-thumb:hover {
-          background-color: rgb(93 85 245 / 0.3);
-      }
-      body{
-          scrollbar-width: thin;
-          scrollbar-color: rgb(93 85 245 / 0.3) #f0f0f0;
-        }
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+p {
+  white-space: pre-line;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
   
     </style>

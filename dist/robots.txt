@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# Pages à ne pas indexer (si vous avez un admin frontend)
+Disallow: /admin/
+
+# Sitemaps
+Sitemap: https://leseditionsdudjembe.com/sitemap.xml
+Sitemap: https://api.leseditionsdudjembe.com/sitemap.xml
+
+# Crawl delay
+Crawl-delay: 10
