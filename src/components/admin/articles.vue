@@ -685,14 +685,26 @@ export default {
       this.$router.push(`/actualites/${article.slug}`);
     },
 
-    toggleFeatured(article) {
-      article.featured = !article.featured;
-      this.showToast(
-        article.featured ? "Mis en vedette" : "Retiré des vedettes",
-        `L'article "${article.title}" a été ${
-          article.featured ? "mis en vedette" : "retiré des vedettes"
-        }.`
-      );
+    async toggleFeatured(article) {
+      const newFeatured = !article.featured;
+      const token = localStorage.getItem("token");
+      try {
+        await this.axios.post(
+          this.$store.state.localhost + "saveArticle",
+          { id: article.id, featured: newFeatured },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        article.featured = newFeatured;
+        this.showToast(
+          newFeatured ? "Mis en vedette" : "Retiré des vedettes",
+          `L'article "${article.title}" a été ${
+            newFeatured ? "mis en vedette" : "retiré des vedettes"
+          }.`
+        );
+      } catch (error) {
+        console.error("Erreur lors du changement de vedette:", error);
+        alert("Impossible de modifier l'article");
+      }
     },
 
     async deleteArticle(id) {

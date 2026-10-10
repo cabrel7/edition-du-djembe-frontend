@@ -25,3 +25,7 @@ pnpm-debug.log*
 # Secrets & build (ne jamais commiter)
 .env
 .env.*
+
+# Build & downloads locaux (pas dans le VCS)
+dist/
+donwloaded/

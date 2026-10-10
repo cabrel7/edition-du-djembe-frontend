@@ -36,7 +36,7 @@
               <div class="lg:w-[60%] md:w-[65%]  sm:w-full h-[70vh]">
                 <div class="flex justify-center w-full ">
                   <div class=" aspect-auto   rounded-lg overflow-hidden shadow-2xl">
-                    <img :src="book.cover" :alt="book.title"
+                    <img :src="book.cover" :alt="book.title" fetchpriority="high" decoding="async"
                       class="w-full h-full object-cover flex-shrink-0 object-center " />
                   </div>
                 </div>
@@ -201,7 +201,7 @@
               :to="`/livres/${relatedBook.slug.trim()}`"
               class="group bg-card rounded-lg overflow-hidden card-shadow hover-lift">
               <div class="aspect-[3/4] overflow-hidden">
-                <img :src="relatedBook.cover" :alt="relatedBook.title"
+                <img :src="relatedBook.cover" :alt="relatedBook.title" loading="lazy" decoding="async"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
               </div>
               <div class="p-4">

@@ -365,7 +365,7 @@ export default {
   },
 
   // Nettoyage
-  beforeDestroy() {
+  beforeUnmount() {
     this.resetForm()
   }
 }

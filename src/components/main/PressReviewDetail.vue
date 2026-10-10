@@ -99,8 +99,8 @@
               {{ pressReview.summary }}
             </div>
 
-            <!-- Content -->
-            <div class="prose prose-lg max-w-none" v-html="pressReview.content"></div>
+            <!-- Content (DOMPurify : anti-XSS) -->
+            <div class="prose prose-lg max-w-none" v-html="safeContent"></div>
 
             <!-- Tags -->
             <div v-if="pressReview.tags && pressReview.tags.length" class="mt-12 pt-8 border-t border-border">
@@ -368,6 +368,7 @@
 </template>
 
 <script>
+import DOMPurify from 'dompurify'
 import { 
   User, Calendar, Clock, Eye, ExternalLink, FileText, Download,
   Facebook, Twitter, Linkedin, Link, X, ChevronLeft, ChevronRight,
@@ -418,6 +419,10 @@ export default {
   },
 
   computed: {
+    safeContent() {
+      // Anti-XSS : le contenu vient de la BDD (y compris legacy non sanitisé).
+      return DOMPurify.sanitize(this.pressReview.content || '')
+    },
     hasMedia() {
       return this.pressReview.video_url || 
              this.pressReview.audio_url || 
@@ -560,7 +565,7 @@ export default {
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     document.body.style.overflow = 'auto'
   }
 }

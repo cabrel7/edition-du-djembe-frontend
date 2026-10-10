@@ -858,7 +858,7 @@ export default {
     }
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     // Nettoyer les URLs des previews
     if (this.form.cover_preview) {
       URL.revokeObjectURL(this.form.cover_preview)

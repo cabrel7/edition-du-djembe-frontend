@@ -119,6 +119,8 @@
               <img
                 :src="book.cover"
                 :alt="book.title"
+                loading="lazy"
+                decoding="async"
                 class="w-full h-full object-center object-cover group-hover:scale-105 transition-transform duration-300"
               />
             </div>

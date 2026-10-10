@@ -417,18 +417,23 @@ export default {
         console.error('Erreur lors du téléchargement:', error)
         alert('Impossible de télécharger le fichier')
       }
-    
-      this.memoir.downloads_count++
-      
      }
   },
   
   mounted() {
-    console.log('Memoir detail page mounted, ID:', this.memoirId)
-    
-    // Incrémenter le compteur de vues
-    if (this.memoir) {
-      this.memoir.views_count++
+    // Incrémenter le compteur de vues côté serveur (persisté).
+    if (this.memoir && this.memoir.id) {
+      this.axios.post(this.$store.state.localhost + 'updatememoirview', { id: this.memoir.id })
+        .then((response) => {
+          if (response.data && response.data.views_count !== undefined) {
+            this.memoir.views_count = response.data.views_count
+          } else {
+            this.memoir.views_count++
+          }
+        })
+        .catch(() => {
+          this.memoir.views_count++
+        })
     }
   }
 }

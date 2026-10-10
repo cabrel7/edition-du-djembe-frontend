@@ -1,23 +1,22 @@
 import { createRouter, createWebHistory } from "vue-router";
 import store from "@/store";
 import { trackPageView } from '@/plugins/analytics'
-// Import des composants Admin
-import Admin from "@/components/admin/admin.vue";
-import Articles from "@/components/admin/articles.vue";
-import Book from "@/components/admin/book.vue";
-import Categorie from "@/components/admin/categorie.vue";
-import Domaine from "@/components/admin/domaine.vue";
-import Layout from "@/components/admin/layout.vue";
-import Memoires from "@/components/admin/memoires.vue";
-import Servicesadmin from "@/components/admin/contacted.vue";
-import Videos from "@/components/admin/video.vue";
-import Submitdata from "@/components/admin/submitdata.vue";
-import Addorther from "@/components/admin/addother.vue";
+// Composants Admin — lazy imports (hors du bundle servi aux visiteurs anonymes)
+const Admin = () => import("@/components/admin/admin.vue");
+const Articles = () => import("@/components/admin/articles.vue");
+const Book = () => import("@/components/admin/book.vue");
+const Categorie = () => import("@/components/admin/categorie.vue");
+const Domaine = () => import("@/components/admin/domaine.vue");
+const Layout = () => import("@/components/admin/layout.vue");
+const Memoires = () => import("@/components/admin/memoires.vue");
+const Servicesadmin = () => import("@/components/admin/contacted.vue");
+const Videos = () => import("@/components/admin/video.vue");
+const Submitdata = () => import("@/components/admin/submitdata.vue");
+const Addorther = () => import("@/components/admin/addother.vue");
 // Import des composants publics
 import layout from "@/components/layout.vue";
 import About from "@/components/main/about.vue";
 import Articledetail from "@/components/main/articledetail.vue";
-import AuthComponent from "@/components/main/authComponent.vue";
 import Bookdetail from "@/components/main/bookdetail.vue";
 import Catalog from "@/components/main/catalog.vue";
 import Contact from "@/components/main/contact.vue";

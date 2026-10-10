@@ -629,16 +629,29 @@ export default {
       }           
         },
 
-        changeStatus(memoir, newStatus) {
+        async changeStatus(memoir, newStatus) {
             const statusNames = { 0: 'en attente', 1: 'approuvé', 2: 'rejeté' }
             const oldStatus = memoir.status
 
-            if (confirm(`Changer le statut de ce mémoire de "${statusNames[oldStatus]}" à "${statusNames[newStatus]}" ?`)) {
+            if (!confirm(`Changer le statut de ce mémoire de "${statusNames[oldStatus]}" à "${statusNames[newStatus]}" ?`)) {
+                return
+            }
+
+            const token = localStorage.getItem('token')
+            try {
+                await this.axios.post(
+                    this.$store.state.localhost + 'saveMemoir',
+                    { id: memoir.id, status: newStatus },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                )
                 memoir.status = newStatus
                 this.showToast(
                     "Statut modifié",
                     `Le mémoire a été ${statusNames[newStatus]}.`
                 )
+            } catch (error) {
+                console.error('Erreur lors du changement de statut:', error)
+                alert("Impossible de modifier le statut du mémoire")
             }
         },
 

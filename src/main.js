@@ -17,4 +17,20 @@ import VueAxios from 'vue-axios'
 initGoogleAnalytics('G-2F1E0XH40B')
 // )
 
+// Intercepteur global : token expiré/invalidé → nettoyage + retour à l'accueil.
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status
+    if (status === 401 && localStorage.getItem('token')) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      if (!window.location.pathname.startsWith('/admin/login')) {
+        window.location.href = '/'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
 createApp(App).use(store).use(router).use(VueAxios, axios).mount('#app')
