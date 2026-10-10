@@ -261,6 +261,7 @@ import {
   Search, Calendar, User, Clock, Eye, ChevronRight, 
   ChevronLeft, Newspaper 
 } from 'lucide-vue-next'
+import axios from 'axios'
 
 export default {
   name: 'PressReviewsPage',

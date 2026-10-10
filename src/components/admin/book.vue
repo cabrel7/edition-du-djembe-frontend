@@ -238,6 +238,11 @@
                                 class="w-full py-2 px-3 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
                         </div>
                     </div>
+                    <div class="mt-4">
+                        <label class="text-sm font-medium leading-none block mb-1">Lien Amazon (optionnel)</label>
+                        <input type="url" v-model="dialogData.amazon_url" placeholder="https://www.amazon.fr/dp/XXXXXXXXX"
+                            class="w-full py-2 px-3 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                    </div>
 
                     <!-- Description -->
                     <div>
@@ -394,6 +399,7 @@ export default {
                 published_date: '',
                 price: 0,
                 isbn: '',
+                amazon_url: '',
                 slug:'',
                 pages: 0,
                 document: null,
@@ -500,6 +506,7 @@ export default {
                 published_date: new Date().toISOString().split('T')[0],
                 price: 0,
                 isbn: '',
+                amazon_url: '',
                 pages: 0,
                 document: null,
                 stock_quantity: null,
@@ -527,6 +534,7 @@ export default {
                     book.published_date.split('T')[0] : '',
                 price: book.price,
                 isbn: book.isbn,
+                amazon_url: book.amazon_url || '',
                 pages: book.pages,
                 document: book.document || '',
                 stock_quantity: book.stock_quantity,
@@ -577,6 +585,11 @@ export default {
                 return
             }
 
+            if (this.dialogData.amazon_url && !/^https?:\/\/.+/.test(this.dialogData.amazon_url)) {
+                alert("Le lien Amazon doit être une URL valide (commençant par http:// ou https://)")
+                return
+            }
+
             if (!this.dialogData.price || this.dialogData.price <= 0) {
                 alert("Le prix est requis et doit être positif")
                 return
@@ -617,7 +630,6 @@ export default {
                           let book = res.data.book
                       
                         book.cover = this.$store.state.bookcover + '/' + book.cover
-                        book.category=this.getCategoryName(book.category)
                         if (this.editingBook) {
                 // Mettre à jour le livre existant
                 Object.assign(this.editingBook, {
@@ -653,13 +665,24 @@ export default {
             this.$router.push(`/catalogue/${book.id}`)
         },
 
-        // Changer le statut
-        toggleStatus(book) {
+        // Changer le statut (persisté via l'API, avec rollback si échec)
+        async toggleStatus(book) {
+            const previous = book.status
             book.status = !book.status
-            this.showToast(
-                book.status ? "Activé" : "Désactivé",
-                `Le livre "${book.title}" a été ${book.status ? 'activé' : 'désactivé'}.`
-            )
+            try {
+                await this.axios.post(
+                    this.$store.state.localhost + 'saveBook',
+                    { id: book.id, status: book.status ? 1 : 0 },
+                    { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+                )
+                this.showToast(
+                    book.status ? "Activé" : "Désactivé",
+                    `Le livre "${book.title}" a été ${book.status ? 'activé' : 'désactivé'}.`
+                )
+            } catch (e) {
+                book.status = previous
+                this.showToast("Erreur", e.response?.data?.message || "Impossible de changer le statut")
+            }
         },
 
         // Supprimer un livre

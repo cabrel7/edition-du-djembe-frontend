@@ -389,7 +389,59 @@
             >
               Supprimer
             </button>
+
+            <button 
+              v-if="selectedSubmission.email"
+              @click="openEmailDialog"
+              class="border border-input bg-background hover:bg-accent hover:text-accent-foreground px-4 py-2 rounded-md font-medium inline-flex items-center gap-2"
+            >
+              <Mail class="w-4 h-4" />
+              Envoyer un email
+            </button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Email Dialog -->
+  <div v-if="isEmailDialogOpen" class="fixed inset-0 z-[60] bg-foreground/80 flex items-center justify-center p-4">
+    <div class="bg-card rounded-lg overflow-hidden max-w-lg w-full">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-border">
+        <h2 class="text-lg font-semibold text-foreground">Envoyer un email</h2>
+        <button @click="closeEmailDialog" class="p-1 hover:bg-secondary rounded-md">
+          <X class="w-4 h-4" />
+        </button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="text-sm font-medium block mb-1">Destinataire</label>
+          <input type="email" :value="selectedSubmission?.email" disabled
+            class="w-full py-2 px-3 rounded-md border border-input bg-secondary text-muted-foreground" />
+        </div>
+        <div>
+          <label class="text-sm font-medium block mb-1">Sujet *</label>
+          <input type="text" v-model="emailForm.subject" maxlength="200"
+            placeholder="Votre soumission — Les Éditions du Djembé"
+            class="w-full py-2 px-3 rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+        </div>
+        <div>
+          <label class="text-sm font-medium block mb-1">Message *</label>
+          <textarea v-model="emailForm.message" rows="6" maxlength="5000"
+            placeholder="Bonjour, après examen de votre manuscrit..."
+            class="w-full py-2 px-3 rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-4 border-t border-border">
+          <button @click="closeEmailDialog"
+            class="border border-input bg-background hover:bg-accent hover:text-accent-foreground px-4 py-2 rounded-md font-medium">
+            Annuler
+          </button>
+          <button @click="sendEmail" :disabled="isSendingEmail"
+            :class="isSendingEmail ? 'opacity-50 cursor-not-allowed' : ''"
+            class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 inline-flex items-center gap-2">
+            <Mail class="w-4 h-4" />
+            {{ isSendingEmail ? 'Envoi...' : 'Envoyer' }}
+          </button>
         </div>
       </div>
     </div>
@@ -399,7 +451,7 @@
 <script>
 import { 
   User, Download, RefreshCw, Inbox, X, 
-  FileText, CheckCircle, XCircle, BookOpen, FileCheck, Newspaper 
+  FileText, CheckCircle, XCircle, BookOpen, FileCheck, Newspaper, Mail 
 } from 'lucide-vue-next'
 import axios from 'axios'
 
@@ -417,7 +469,8 @@ export default {
     XCircle,
     BookOpen,
     FileCheck,
-    Newspaper
+    Newspaper,
+    Mail
   },
   
   data() {
@@ -446,7 +499,13 @@ export default {
       isLoading: false,
       newStatus: 'pending',
       adminNotes: '',
-      searchTimeout: null
+      searchTimeout: null,
+      isEmailDialogOpen: false,
+      isSendingEmail: false,
+      emailForm: {
+        subject: '',
+        message: ''
+      }
     }
   },
   
@@ -664,6 +723,54 @@ export default {
       } catch (error) {
         console.error('Erreur lors de la suppression:', error)
         alert('Impossible de supprimer la soumission')
+      }
+    },
+    
+    // Email
+    openEmailDialog() {
+      this.emailForm = {
+        subject: `Votre soumission « ${this.selectedSubmission.title} » — Les Éditions du Djembé`,
+        message: ''
+      }
+      this.isEmailDialogOpen = true
+    },
+    
+    closeEmailDialog() {
+      if (this.isSendingEmail) return
+      this.isEmailDialogOpen = false
+      this.emailForm = { subject: '', message: '' }
+    },
+    
+    async sendEmail() {
+      if (!this.emailForm.subject.trim() || !this.emailForm.message.trim()) {
+        alert('Le sujet et le message sont requis')
+        return
+      }
+      
+      this.isSendingEmail = true
+      try {
+        const token = localStorage.getItem('token')
+        
+        await axios.post(
+          `${this.$store.state.localhost}admin/submissions/${this.selectedSubmission.id}/send-email`,
+          {
+            subject: this.emailForm.subject,
+            message: this.emailForm.message
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        )
+        
+        this.isEmailDialogOpen = false
+        this.emailForm = { subject: '', message: '' }
+        alert(`Email envoyé à ${this.selectedSubmission.email}`)
+        
+      } catch (error) {
+        console.error("Erreur lors de l'envoi de l'email:", error)
+        alert(error.response?.data?.message || "Impossible d'envoyer l'email")
+      } finally {
+        this.isSendingEmail = false
       }
     },
     

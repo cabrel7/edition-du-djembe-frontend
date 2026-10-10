@@ -603,9 +603,11 @@ export default {
         },
 
         async downloadMemoir(memoir) {
-			    try {
+          try {
 
-        const response = await axios.get(this.$store.state.localhost + 'downloadmemoir/' + id)
+        const response = await this.axios.get(this.$store.state.localhost + 'downloadmemoir/' + memoir.id, {
+          responseType: 'blob'
+        })
 
 
         const url = window.URL.createObjectURL(new Blob([response.data]))
@@ -619,6 +621,7 @@ export default {
         document.body.appendChild(link)
         link.click()
         link.remove()
+        window.URL.revokeObjectURL(url)
 
       } catch (error) {
         console.error('Erreur lors du téléchargement:', error)

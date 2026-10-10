@@ -98,7 +98,7 @@
                     :class="!book.status || (book.stock_quantity !== null && book.stock_quantity <= 0) ? 'opacity-50 cursor-not-allowed' : ''"
                     class="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:opacity-90 transition-all flex-1 flex items-center justify-center gap-2">
                     <ShoppingCart class="w-4 h-4" />
-                    {{ book.stock_quantity !== null && book.stock_quantity <= 0 ? 'Rupture de stock' : 'Acheter' }}
+                    {{ book.stock_quantity !== null && book.stock_quantity <= 0 ? 'Rupture de stock' : (book.amazon_url ? 'Acheter sur Amazon' : 'Acheter') }}
                       </button>
                       <button @click="downloadbook(book.id)" 
                         :class="!book.extraitdocument ? 'opacity-50 cursor-not-allowed' : ''"
@@ -302,7 +302,9 @@ export default {
 
       try {
 
-        const response = await this.axios.get(this.$store.state.localhost + 'downloadbook/' + id)
+        const response = await this.axios.get(this.$store.state.localhost + 'downloadbook/' + id, {
+          responseType: 'blob'
+        })
 
 
         const url = window.URL.createObjectURL(new Blob([response.data]))
@@ -318,6 +320,7 @@ export default {
         document.body.appendChild(link)
         link.click()
         link.remove()
+        window.URL.revokeObjectURL(url)
 
       } catch (error) {
         console.error('Erreur lors du téléchargement:', error)
@@ -357,26 +360,14 @@ export default {
     },
 
     handlePurchase() {
+      if (this.book.amazon_url) {
+        window.open(this.book.amazon_url, '_blank', 'noopener')
+        return
+      }
       this.isdispo = true
       setTimeout(() => {
         this.isdispo = false
       }, 5000)
-      // if (!this.book.status) {
-      //   alert("Ce livre n'est pas disponible à la vente.")
-      //   return
-      // }
-
-      // if (this.book.stock_quantity !== null && this.book.stock_quantity <= 0) {
-      //   alert("Ce livre est en rupture de stock.")
-      //   return
-      // }
-
-      // alert(`Ajout de "${this.book.title}" au panier pour ${this.book.price} €`)
-
-      // // Décrémenter le stock si nécessaire
-      // if (this.book.stock_quantity !== null) {
-      //   this.book.stock_quantity--
-      // }
     },
 
     

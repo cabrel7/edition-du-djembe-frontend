@@ -432,18 +432,28 @@ export default {
         },
 
         // Changer le statut (actif/inactif)
-        toggleStatus(domaine) {
+        async toggleStatus(domaine) {
             const newStatus = !domaine.is_active
             const statusText = newStatus ? "activé" : "désactivé"
 
             if (confirm(`Êtes-vous sûr de vouloir ${statusText} le domaine "${domaine.name}" ?`)) {
+                const previous = domaine.is_active
                 domaine.is_active = newStatus
-                domaine.updated_at = new Date().toISOString()
 
-                this.showToast(
-                    "Statut modifié",
-                    `Le domaine a été ${statusText}.`
-                )
+                try {
+                    await this.axios.post(
+                        this.$store.state.localhost + 'saveDomaine',
+                        { id: domaine.id, name: domaine.name, is_active: newStatus },
+                        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+                    )
+                    this.showToast(
+                        "Statut modifié",
+                        `Le domaine a été ${statusText}.`
+                    )
+                } catch (e) {
+                    domaine.is_active = previous
+                    this.showToast("Erreur", e.response?.data?.message || "Impossible de changer le statut")
+                }
             }
         },
 

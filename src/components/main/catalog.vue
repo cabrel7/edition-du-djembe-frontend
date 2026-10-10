@@ -192,7 +192,7 @@ export default {
                             book.author.toLowerCase().includes(this.searchQuery.toLowerCase())
         const matchesCategory = this.selectedCategory === 'all' || book.category === this.selectedCategory
         const matchesYear = this.selectedYear === 'all' || 
-                           new Date(book.publishedDate).getFullYear().toString() === this.selectedYear
+                           new Date(book.published_date).getFullYear().toString() === this.selectedYear
         return matchesSearch && matchesCategory && matchesYear
       })
     },

@@ -501,7 +501,7 @@ export default {
     
     // Basculer l'affichage de la bio
     toggleBio(memberId) {
-      this.$set(this.showBio, memberId, !this.showBio[memberId]);
+      this.showBio[memberId] = !this.showBio[memberId];
     },
     
     // Charger les données de l'équipe
