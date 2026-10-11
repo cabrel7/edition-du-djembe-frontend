@@ -254,9 +254,8 @@ export default {
           }
         )
 
-        if (response.status === 200 && response.data.token) {
-          // Stocker les informations dans le localStorage
-          localStorage.setItem('token', response.data.token)
+        if (response.status === 200 && response.data.user) {
+          // Le token est en cookie httpOnly côté serveur — jamais en localStorage.
           localStorage.setItem('isconnect', '1')
           localStorage.setItem('userData', JSON.stringify(response.data.user))
 

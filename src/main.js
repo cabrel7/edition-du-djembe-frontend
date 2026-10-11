@@ -17,6 +17,23 @@ import VueAxios from 'vue-axios'
 initGoogleAnalytics('G-2F1E0XH40B')
 // )
 
+// Auth par cookie httpOnly : le navigateur doit toujours envoyer les cookies
+// (front et API peuvent être cross-origin en dev).
+axios.defaults.withCredentials = true
+
+// Les anciens appels envoient encore "Bearer null/undefined" (token localStorage
+// supprimé) : on strip ce header pour laisser le backend lire le cookie.
+axios.interceptors.request.use((config) => {
+  const auth = config.headers?.Authorization
+  if (typeof auth === 'string') {
+    const value = auth.replace(/^Bearer\s+/i, '').trim()
+    if (!value || value === 'null' || value === 'undefined') {
+      delete config.headers.Authorization
+    }
+  }
+  return config
+})
+
 // Intercepteur global : token expiré/invalidé → nettoyage + retour à l'accueil.
 axios.interceptors.response.use(
   (response) => response,
@@ -24,7 +41,8 @@ axios.interceptors.response.use(
     const status = error.response?.status
     if (status === 401 && localStorage.getItem('token')) {
       localStorage.removeItem('token')
-      localStorage.removeItem('user')
+      localStorage.removeItem('isconnect')
+      localStorage.removeItem('userData')
       if (!window.location.pathname.startsWith('/admin/login')) {
         window.location.href = '/'
       }

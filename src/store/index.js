@@ -550,8 +550,9 @@ export default createStore({
           credentials
         );
 
-        if (response.data.token && response.data.user) {
-          localStorage.setItem("token", response.data.token);
+        // Le token voyage en cookie httpOnly (jamais lisible par le JS) :
+        // le backend l'applique automatiquement à chaque requête (withCredentials).
+        if (response.data.user) {
           localStorage.setItem("isconnect", "1");
           localStorage.setItem("userData", JSON.stringify(response.data.user));
 
@@ -576,7 +577,14 @@ export default createStore({
     },
 
     // Action de logout améliorée
-    logout({ commit }) {
+    async logout({ commit, state }) {
+      // Révoque le token côté serveur + vide le cookie httpOnly (best effort).
+      try {
+        await axios.post(`${state.localhost}logout`);
+      } catch (e) {
+        // Session déjà expirée : on nettoie quand même côté client.
+      }
+
       localStorage.removeItem("token");
       localStorage.removeItem("isconnect");
       localStorage.removeItem("userData");
