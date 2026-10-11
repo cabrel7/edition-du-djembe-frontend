@@ -77,36 +77,47 @@
             </div>
           </router-link>
         </div>
+        <div v-if="hasMoreArticles" class="flex justify-center mt-10">
+          <button
+            :disabled="loadingArticles"
+            @click="loadMoreArticles"
+            class="inline-flex items-center gap-2 px-6 py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            <Loader2 v-if="loadingArticles" class="w-4 h-4 animate-spin" />
+            {{ loadingArticles ? 'Chargement…' : 'Charger plus' }}
+          </button>
+        </div>
       </div>
     </section>
   </div>
 </template>
 
 <script>
-import { Search, Calendar } from 'lucide-vue-next'
+import { Search, Calendar, Loader2 } from 'lucide-vue-next'
 
 export default {
   name: 'NewsPage',
   
   components: {
     Search,
-    Calendar
+    Calendar,
+    Loader2
   },
   
   data() {
     return {
       searchQuery: '',
       selectedCategory: 0,
-      
-       
-      // Mock data - Articles
-      
+      loadingArticles: false
     }
   },
   
   computed: {
      categories(){
       return this.$store.state.publicData.allCategories;
+    },
+    hasMoreArticles() {
+      return this.$store.state.publicArticleHasMore
     },
      articles(){
       return this.$store.state.publicData.allArticles;
@@ -124,6 +135,17 @@ export default {
   },
   
   methods: {
+    async loadMoreArticles() {
+      if (this.loadingArticles || !this.hasMoreArticles) return
+      this.loadingArticles = true
+      try {
+        await this.$store.dispatch('fetchPublicArticles', this.$store.state.publicArticleNextCursor)
+      } catch (e) {
+        // Erreur réseau silencieuse
+      } finally {
+        this.loadingArticles = false
+      }
+    },
     // Mise à jour des filtres
     updateSearchQuery(event) {
       this.searchQuery = event.target.value

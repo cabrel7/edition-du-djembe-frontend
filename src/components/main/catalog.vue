@@ -142,42 +142,51 @@
             </div>
           </router-link>
         </div>
+        <div v-if="hasMoreBooks" class="flex justify-center mt-10">
+          <button
+            :disabled="loadingBooks"
+            @click="loadMoreBooks"
+            class="inline-flex items-center gap-2 px-6 py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            <Loader2 v-if="loadingBooks" class="w-4 h-4 animate-spin" />
+            {{ loadingBooks ? 'Chargement…' : 'Charger plus' }}
+          </button>
+        </div>
       </div>
     </section>
   </div>
 </template>
 
 <script>
-import { Search, Filter, X } from 'lucide-vue-next'
+import { Search, X, Loader2 } from 'lucide-vue-next'
 
 export default {
   name: 'CatalogPage',
-  
+
   components: {
     Search,
-    Filter,
-    X
+    X,
+    Loader2
   },
-  
+
   data() {
     return {
       searchQuery: '',
       selectedCategory: 'all',
       selectedYear: 'all',
-      
-      // Mock data - Catégories
-     
-      
-     
+      loadingBooks: false
     }
   },
-  
+
   computed: {
      categories(){
             return this.$store.state.publicData.allCategories|| []
         },
      books(){
       return this.$store.state.publicData.allBooks;
+    },
+    hasMoreBooks() {
+      return this.$store.state.publicBookHasMore
     },
     // Calcul des années uniques (équivalent à useMemo)
     years() {
@@ -206,6 +215,17 @@ export default {
   },
   
   methods: {
+    async loadMoreBooks() {
+      if (this.loadingBooks || !this.hasMoreBooks) return
+      this.loadingBooks = true
+      try {
+        await this.$store.dispatch('fetchPublicBooks', this.$store.state.publicBookNextCursor)
+      } catch (e) {
+        // Erreur réseau silencieuse (le bouton reste réactivable)
+      } finally {
+        this.loadingBooks = false
+      }
+    },
     // Méthodes de mise à jour des filtres
     updateSearchQuery(event) {
       this.searchQuery = event.target.value
@@ -220,7 +240,6 @@ export default {
     },
     getCategoryName(categoryId) {
       const category = this.categories.find(c => c.id === categoryId)
-      console.log(this.categories)
       return category ? category.name : `Catégorie #${categoryId}`
     },
     // Réinitialisation des filtres
@@ -229,10 +248,6 @@ export default {
       this.selectedCategory = 'all'
       this.selectedYear = 'all'
     }
-  },
-  
-  mounted() {
-    console.log('Catalog page mounted')
   }
 }
 </script>

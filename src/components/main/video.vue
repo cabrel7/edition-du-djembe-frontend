@@ -48,9 +48,11 @@
           >
             <div class="relative aspect-video overflow-hidden">
               <img
-                :src="video.thumbnail ? ($store.state.videocover + '/' + video.thumbnail) : getDefaultThumbnail(video.video_url)"
+                :src="thumbSrc(video)"
                 :alt="video.title"
                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                loading="lazy"
+                @error="onThumbError($event)"
               />
               <div class="absolute inset-0 bg-foreground/30 group-hover:bg-foreground/40 transition-colors flex items-center justify-center">
                 <div class="w-16 h-16 rounded-full bg-primary-foreground/90 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -87,6 +89,17 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <div v-if="hasMoreVideos" class="flex justify-center mt-10">
+          <button
+            :disabled="loadingVideos"
+            @click="loadMoreVideos"
+            class="inline-flex items-center gap-2 px-6 py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            <Loader2 v-if="loadingVideos" class="w-4 h-4 animate-spin" />
+            {{ loadingVideos ? 'Chargement…' : 'Charger plus' }}
+          </button>
         </div>
 
         <!-- No Videos Message -->
@@ -251,7 +264,7 @@
 </template>
 
 <script>
-import { Play, Calendar, X, ExternalLink, Lock, Eye, Clock, Link } from 'lucide-vue-next'
+import { Play, Calendar, X, ExternalLink, Lock, Eye, Clock, Link, Loader2 } from 'lucide-vue-next'
 
 export default {
   name: 'VideosPage',
@@ -264,13 +277,16 @@ export default {
     Lock,
     Eye,
     Clock,
-    Link
+    Link,
+    Loader2
   },
   
   data() {
     return {
       selectedVideo: null,
       activeFilter: 'all',
+      loadingVideos: false,
+      placeholderThumb: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiByeD0iMiIgZmlsbD0iIzI2MjYyNiIvPgo8cGF0aCBkPSJNMTAgNkw2IDMuMzMzMzNWMTIuNjY2N0wxMCAxMFYxMloiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=',
       videoPlatforms: {
         'youtube': {
           label: 'YouTube',
@@ -333,6 +349,9 @@ export default {
   computed: {
     videos() {
       return this.$store.state.publicData.allVideos || [];
+    },
+    hasMoreVideos() {
+      return this.$store.state.publicVideoHasMore;
     },
     
     publishedVideos() {
@@ -579,9 +598,12 @@ export default {
     getDefaultThumbnail(url) {
       const platform = this.getVideoPlatform(url)
       
+      if (platform === 'youtube') {
+        const id = this.extractYoutubeId(url)
+        if (id) return `https://img.youtube.com/vi/${id}/hqdefault.jpg`
+      }
+
       switch (platform) {
-        case 'youtube':
-          return 'https://img.youtube.com/vi/default/maxresdefault.jpg'
         case 'vimeo':
           return 'https://vimeo.com/favicon.ico'
         case 'dailymotion':
@@ -599,10 +621,41 @@ export default {
         case 'ted':
           return 'https://ted.com/favicon.ico'
         default:
-          return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiByeD0iMiIgZmlsbD0iIzI2MjYyNiIvPgo8cGF0aCBkPSJNMTAgNkw2IDMuMzMzMzNWMTIuNjY2N0wxMCAxMFYxMloiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo='
+          return this.placeholderThumb
       }
     },
-    
+
+    extractYoutubeId(url) {
+      if (!url) return null
+      const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,})/)
+      return match ? match[1] : null
+    },
+
+    thumbSrc(video) {
+      return video.thumbnail
+        ? this.$store.state.videocover + '/' + video.thumbnail
+        : this.getDefaultThumbnail(video.video_url)
+    },
+
+    onThumbError(event) {
+      const el = event.target
+      if (el.dataset.fallback === '1') return
+      el.dataset.fallback = '1'
+      el.src = this.placeholderThumb
+    },
+
+    async loadMoreVideos() {
+      if (this.loadingVideos || !this.hasMoreVideos) return
+      this.loadingVideos = true
+      try {
+        await this.$store.dispatch('fetchPublicVideos', this.$store.state.publicVideoNextCursor)
+      } catch (e) {
+        // Erreur réseau silencieuse
+      } finally {
+        this.loadingVideos = false
+      }
+    },
+
     selectVideo(video) {
       this.selectedVideo = video
       document.body.style.overflow = 'hidden'

@@ -798,7 +798,7 @@ export default createStore({
 
     // -------- PUBLIC PAGINATION --------
     async fetchPublicArticles({ commit, state }, cursor = null) {
-      const res = await axios.post(`${state.localhost}data/article`, cursor ? { cursor } : {});
+      const res = await axios.get(`${state.localhost}data/article`, { params: cursor ? { cursor } : {} });
       if (!cursor) commit("setPublicArticles", res.data.articles || []);
       else commit("pushPublicArticles", res.data.articles || []);
       commit("setPublicArticlePagination", {
@@ -809,7 +809,7 @@ export default createStore({
     },
 
     async fetchPublicBooks({ commit, state }, cursor = null) {
-      const res = await axios.post(`${state.localhost}data/book`, cursor ? { cursor } : {});
+      const res = await axios.get(`${state.localhost}data/book`, { params: cursor ? { cursor } : {} });
       if (!cursor) commit("setPublicBooks", res.data.books || []);
       else commit("pushPublicBooks", res.data.books || []);
       commit("setPublicBookPagination", {
@@ -820,7 +820,7 @@ export default createStore({
     },
 
     async fetchPublicMemoirs({ commit, state }, cursor = null) {
-      const res = await axios.post(`${state.localhost}data/memoir`, cursor ? { cursor } : {});
+      const res = await axios.get(`${state.localhost}data/memoir`, { params: cursor ? { cursor } : {} });
       if (!cursor) commit("setPublicMemoirs", res.data.memoirs || []);
       else commit("pushPublicMemoirs", res.data.memoirs || []);
       commit("setPublicMemoirPagination", {
@@ -831,7 +831,7 @@ export default createStore({
     },
 
     async fetchPublicVideos({ commit, state }, cursor = null) {
-      const res = await axios.post(`${state.localhost}data/video`, cursor ? { cursor } : {});
+      const res = await axios.get(`${state.localhost}data/video`, { params: cursor ? { cursor } : {} });
       if (!cursor) commit("setPublicVideos", res.data.video || []);
       else commit("pushPublicVideos", res.data.video || []);
       commit("setPublicVideoPagination", {

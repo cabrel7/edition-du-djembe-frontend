@@ -136,13 +136,23 @@
             
           </router-link>
         </div>
+        <div v-if="hasMoreMemoirs" class="flex justify-center mt-10">
+          <button
+            :disabled="loadingMemoirs"
+            @click="loadMoreMemoirs"
+            class="inline-flex items-center gap-2 px-6 py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            <Loader2 v-if="loadingMemoirs" class="w-4 h-4 animate-spin" />
+            {{ loadingMemoirs ? 'Chargement…' : 'Charger plus' }}
+          </button>
+        </div>
       </div>
     </section>
   </div>
 </template>
 
 <script>
-import { Search, GraduationCap, Download, X } from 'lucide-vue-next'
+import { Search, GraduationCap, Download, X, Loader2 } from 'lucide-vue-next'
 
 export default {
   name: 'MemoirsPage',
@@ -151,25 +161,24 @@ export default {
     Search,
     GraduationCap,
     Download,
-    X
+    X,
+    Loader2
   },
   
   data() {
     return {
       searchQuery: '',
       selectedDomain: 0,
-      
-      // Domaines disponibles
-    
-      
-      // Mock data - Mémoires
-      
+      loadingMemoirs: false
     }
   },
   
   computed: {
     domains(){
        return this.$store.state.publicData.allDomaine;
+    },
+    hasMoreMemoirs() {
+      return this.$store.state.publicMemoirHasMore
     },
     // Filtrage des mémoires (équivalent à useMemo)
     memoirs(){
@@ -197,15 +206,24 @@ export default {
   },
   
   methods: {
+    async loadMoreMemoirs() {
+      if (this.loadingMemoirs || !this.hasMoreMemoirs) return
+      this.loadingMemoirs = true
+      try {
+        await this.$store.dispatch('fetchPublicMemoirs', this.$store.state.publicMemoirNextCursor)
+      } catch (e) {
+        // Erreur réseau silencieuse
+      } finally {
+        this.loadingMemoirs = false
+      }
+    },
     // Mise à jour des filtres
     updateSearchQuery(event) {
       this.searchQuery = event.target.value
     },
     
     updateDomain(event) {
-     
       this.selectedDomain = event.target.value
-       console.log(this.selectedDomain,event.target)
     },
     getDomainName(domainId) {
       const domain = this.domains.find(d => d.id === domainId)
