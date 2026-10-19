@@ -13,7 +13,8 @@ const Servicesadmin = () => import("@/components/admin/contacted.vue");
 const Videos = () => import("@/components/admin/video.vue");
 const Submitdata = () => import("@/components/admin/submitdata.vue");
 const Addorther = () => import("@/components/admin/addother.vue");
-// Import des composants publics
+/* Composants publics — COMMENTÉS : le site public est désormais le Nuxt web/,
+   ce SPA ne sert que l'admin sur admin.leseditionsdudjembe.com.
 import layout from "@/components/layout.vue";
 import About from "@/components/main/about.vue";
 import Articledetail from "@/components/main/articledetail.vue";
@@ -27,9 +28,13 @@ import News from "@/components/main/news.vue";
 import Services from "@/components/main/services.vue";
 import Submitwork from "@/components/main/submitwork.vue";
 import Video from "@/components/main/video.vue";
+*/
 
 // Import de la page de login admin
 import AdminLoginPage from "@/components/main/authComponent.vue";
+
+// URL du nouveau site public (Nuxt) — sortie externe du SPA admin
+const PUBLIC_SITE_URL = "https://leseditionsdudjembe.com/";
 
 const routes = [
   // Route de login admin
@@ -43,7 +48,8 @@ const routes = [
     }
   },
 
-  // Routes publiques avec layout
+  /* Routes publiques avec layout — COMMENTÉES : le site public est désormais
+     le Nuxt web/, ce SPA ne sert que l'admin sur admin.leseditionsdudjembe.com.
   {
     path: "/",
     name: "/",
@@ -201,6 +207,7 @@ const routes = [
       }
     ]
   },
+  */
 
   // Routes admin protégées
   {
@@ -371,10 +378,15 @@ const routes = [
     ]
   },
 
-  // Route 404
+  // Route 404 → sortie vers le site public. vue-router ne supporte pas les URL
+  // absolues dans `redirect` (résolution relative → boucle infinie) : d'où
+  // beforeEnter avec navigation externe + annulation de la navigation SPA.
   {
     path: "/:pathMatch(.*)*",
-    redirect: "/"
+    beforeEnter: () => {
+      window.location.replace(PUBLIC_SITE_URL);
+      return false;
+    }
   }
 ];
 
@@ -436,7 +448,11 @@ router.beforeEach(async (to, from, next) => {
       localStorage.setItem("redirectAfterLogin", to.fullPath);
       next("/admin/login"); // Redirige vers le login si non connecté
     } else if (to.meta.requiresAdmin && !isAdmin) {
-      next("/"); // Redirige vers l'accueil si pas admin
+      // Non-admin sur /admin → site public (Nuxt), le "/" du SPA n'existe plus
+      // hors login admin. `next()` avec URL absolue n'est pas supporté par
+      // vue-router : navigation externe + abort.
+      window.location.replace(PUBLIC_SITE_URL);
+      next(false);
     } else {
       next();
     }

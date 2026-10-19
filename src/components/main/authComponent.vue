@@ -138,9 +138,9 @@
       <!-- Footer -->
       <div class="mt-6 text-center">
         <p class="text-sm text-muted-foreground">
-          <router-link to="/" class="text-primary hover:underline">
+          <a href="https://leseditionsdudjembe.com/" class="text-primary hover:underline">
             ← Retour à l'accueil
-          </router-link>
+          </a>
         </p>
       </div>
     </div>

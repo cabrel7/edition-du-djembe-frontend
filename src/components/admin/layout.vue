@@ -66,15 +66,17 @@
 
       <!-- Footer -->
       <div class="p-4 border-t border-sidebar-border">
-        <router-link
-          to="/"
+        <a
+          href="https://leseditionsdudjembe.com/"
+          target="_blank"
+          rel="noopener"
           :class="[
             'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-primary-foreground/80 hover:bg-sidebar-accent hover:text-primary-foreground transition-colors'
           ]"
         >
           <LogOut class="w-5 h-5" />
           <span v-if="sidebarOpen">Retour au site</span>
-        </router-link>
+        </a>
       </div>
     </aside>
 
