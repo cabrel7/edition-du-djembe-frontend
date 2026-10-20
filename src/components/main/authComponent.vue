@@ -181,11 +181,12 @@ export default {
   },
 
   mounted() {
-    // Vérifier si l'utilisateur est déjà connecté
-    const token = localStorage.getItem('token')
+    // Vérifier si l'utilisateur est déjà connecté (flags de session ; le token
+    // est un cookie httpOnly illisible depuis 92fe7c8).
     const isConnected = localStorage.getItem('isconnect') === '1'
-    
-    if (token && isConnected) {
+    const userData = localStorage.getItem('userData')
+
+    if (isConnected && userData) {
       // Rediriger vers le dashboard
       this.$router.push('/admin')
     }

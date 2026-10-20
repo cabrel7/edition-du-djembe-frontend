@@ -35,17 +35,21 @@ axios.interceptors.request.use((config) => {
   return config
 })
 
-// Intercepteur global : token expiré/invalidé → nettoyage + retour à l'accueil.
+// Intercepteur global : session expirée/invalidée → nettoyage + login admin.
+// Le signal 401 n'a plus de "token" localStorage à tester (cookie httpOnly) :
+// on se fie au flag de session, sinon le nettoyage ne se déclenchait jamais.
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status
-    if (status === 401 && localStorage.getItem('token')) {
+    if (status === 401 && localStorage.getItem('isconnect')) {
       localStorage.removeItem('token')
       localStorage.removeItem('isconnect')
       localStorage.removeItem('userData')
       if (!window.location.pathname.startsWith('/admin/login')) {
-        window.location.href = '/'
+        window.location.href = window.location.pathname.startsWith('/admin')
+          ? '/admin/login'
+          : '/'
       }
     }
     return Promise.reject(error)

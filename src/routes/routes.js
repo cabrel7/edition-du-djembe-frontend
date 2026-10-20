@@ -405,11 +405,13 @@ scrollBehavior(to, from, savedPosition) {
 
 // Fonction pour vérifier l'authentification
 const checkAuth = async () => {
-  const token = localStorage.getItem("token");
+  // L'auth est un cookie httpOnly (depuis 92fe7c8) : localStorage ne garde plus
+  // que les flags de session (isconnect/userData) — il n'y a plus de token lisible,
+  // exiger "token" ici laissait authenticated=false toujours et bouclait le login.
   const isConnected = localStorage.getItem("isconnect") === "1";
   const userData = localStorage.getItem("userData");
 
-  if (token && isConnected && userData) {
+  if (isConnected && userData) {
     try {
       const user = JSON.parse(userData);
       store.commit("setUser", user);

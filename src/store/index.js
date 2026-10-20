@@ -509,11 +509,12 @@ export default createStore({
 
   actions: {
     async checkAuth({ commit, dispatch, state }) {
-      const token = localStorage.getItem("token");
+      // Session = cookie httpOnly ; localStorage ne garde que les flags
+      // (isconnect/userData) — plus de token lisible depuis 92fe7c8.
       const isConnected = localStorage.getItem("isconnect") === "1";
       const userData = localStorage.getItem("userData");
 
-      if (token && isConnected && userData) {
+      if (isConnected && userData) {
         try {
           const user = JSON.parse(userData);
           commit("setUser", user);
