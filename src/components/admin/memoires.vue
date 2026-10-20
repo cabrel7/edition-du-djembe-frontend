@@ -293,9 +293,8 @@
                                 <div @click="triggerdocumentUpload"
                                     class="border-2 border-dashed border-input rounded-lg p-6 text-center cursor-pointer hover:border-ring transition-normal">
                                     <div v-if="dialogData.document">
-                                        <!-- <img :src="image" class="h-40 w-40 object-cover rounded-lg mx-auto mb-2" /> -->
-                                        <p class="text-sm text-muted-foreground">succes ! Cliquer pour changer le
-                                            fichier</p>
+                                        <p class="text-sm text-muted-foreground">Fichier actuel : {{ editDocName || 'document enregistré' }}</p>
+                                        <p class="text-sm text-muted-foreground">Cliquer pour changer le fichier</p>
                                     </div>
                                     <div v-else>
                                         <Upload class="w-8 h-8 text-muted-foreground mx-auto mb-2" />
@@ -327,6 +326,7 @@
 
 <script>
 import { Plus, Search, Edit, Trash2, Download, Upload, X, Eye } from 'lucide-vue-next'
+import { stripNonFileUploads, resolveCoverUrl } from '@/utils/files'
 
 export default {
     name: 'MemoirsAdminPage',
@@ -350,6 +350,7 @@ export default {
             editingMemoir: null,
             keywordsInput: '',
             image: null,
+            editDocName: '',
 
             // Données du formulaire du dialog
             dialogData: {
@@ -436,6 +437,7 @@ export default {
 
         openAddDialog() {
             this.editingMemoir = null
+            this.image = null
             this.dialogData = {
                 title: '',
                 author: '',
@@ -452,12 +454,14 @@ export default {
                 status: 0
             }
             this.keywordsInput = ''
+            this.editDocName = ''
             this.isDialogOpen = true
         },
 
         openEditDialog(memoir) {
             this.editingMemoir = memoir
-            this.image = memoir.cover
+            this.image = resolveCoverUrl(memoir.cover, this.$store.state.memoircover)
+            this.editDocName = memoir.document || ''
             this.dialogData = {
                 id: memoir.id,
                 title: memoir.title,
@@ -467,6 +471,7 @@ export default {
                 year: memoir.year,
                 abstract: memoir.abstract,
                 cover: memoir.cover || '',
+                document: memoir.document || '',
                 extension: memoir.extension || 'pdf',
                 supervisor: memoir.supervisor || '',
                 defense_date: memoir.defense_date ? memoir.defense_date.split('T')[0] : '',
@@ -480,6 +485,8 @@ export default {
         closeDialog() {
             this.isDialogOpen = false
             this.editingMemoir = null
+            this.editDocName = ''
+            this.image = null
         },
 
         async saveMemoir() {
@@ -532,9 +539,10 @@ export default {
 
             // Ajouter un nouveau mémoire
             // const author = this.authors.find(a => a.id === this.dialogData.author)
+            const payload = stripNonFileUploads({ ...this.dialogData }, ['cover', 'document'])
             const newMemoir = {
 
-                ...this.dialogData,
+                ...payload,
 
                 // keywords: keywords,
 
@@ -565,6 +573,8 @@ export default {
                             updated_at: new Date().toISOString(),
 
                         })
+                        // dialogData.cover peut être un File : URL d'affichage pour la liste.
+                        if (this.image) this.editingMemoir.cover = this.image
 
                         // // Mettre à jour le nom d'auteur si l'auteur a changé
                         // if (this.dialogData.author) {
@@ -695,6 +705,7 @@ export default {
 
             if (file) {
                 this.dialogData.document = file
+                this.editDocName = file.name
                 // const reader = new FileReader()
                 // reader.onload = (e) => {
                 //     this.document = e.target.result

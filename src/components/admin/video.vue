@@ -83,7 +83,7 @@
                         </td>
                         <td class="py-3 px-4">
                             <div class="relative w-24 aspect-video rounded overflow-hidden">
-                                <img  :src="$store.state.videocover+'/'+video.thumbnail" :alt="video.title" class="w-full h-full object-cover" />
+                                <img  :src="resolveCoverUrl(video.thumbnail, $store.state.videocover)" :alt="video.title" class="w-full h-full object-cover" />
                                 <div  class="absolute inset-0 bg-foreground/30 flex items-center justify-center">
                                     <Play class="w-6 h-6 text-primary-foreground" />
                                 </div>
@@ -238,6 +238,7 @@
 <script>
     
 import { Plus, Search, Edit, Trash2, Play, Upload, X, Eye } from 'lucide-vue-next'
+import { stripNonFileUploads, resolveCoverUrl } from '@/utils/files'
 
 export default {
     name: 'VideosAdminPage',
@@ -311,6 +312,8 @@ export default {
     },
 
     methods: {
+        resolveCoverUrl,
+
         updateSearchQuery(event) {
             this.searchQuery = event.target.value
         },
@@ -349,7 +352,7 @@ export default {
         openEditDialog(video) {
             this.editingVideo = video
             this.fileError = null
-            this.imagePreview = this.$store.state.videocover + '/' + video.thumbnail
+            this.imagePreview = resolveCoverUrl(video.thumbnail, this.$store.state.videocover)
             this.dialogData = {
                 title: video.title,
                 id: video.id,
@@ -395,8 +398,9 @@ export default {
                 return
             }
 
+            const payload = stripNonFileUploads({ ...this.dialogData }, ['thumbnail'])
             const newVideo = {
-                ...this.dialogData,
+                ...payload,
             }
           
             let token = localStorage.getItem('token')
@@ -422,6 +426,8 @@ export default {
                             ...this.dialogData,
                             updated_at: new Date().toISOString()
                         })
+                        // dialogData.thumbnail peut être un File : URL d'affichage pour la liste.
+                        if (this.imagePreview) this.editingVideo.thumbnail = this.imagePreview
                         this.showToast("Vidéo mise à jour", "Les modifications ont été enregistrées.")
                     } else {
                         this.videos.unshift(video)

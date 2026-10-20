@@ -65,7 +65,7 @@
               </div>
               <div class="text-right">
                 <p class="text-sm font-medium text-primary">
-                  {{ book.price }} €
+                  {{ formatPrice(book.price) }}
                 </p>
                 <p class="text-xs text-muted-foreground">
                   {{ formatDate(book.published_date, 'short') }}
@@ -203,6 +203,7 @@ import {
   ArrowUpRight,
   Calendar
 } from 'lucide-vue-next'
+import { formatPrice } from '@/utils/price'
 
 export default {
   name: 'AdminDashboardPage',
@@ -297,7 +298,9 @@ computed: {
         ? { day: 'numeric', month: 'numeric', year: 'numeric' }
         : { day: 'numeric', month: 'long', year: 'numeric' }
       return date.toLocaleDateString('fr-FR', options)
-    }
+    },
+
+    formatPrice
   },
   
   mounted() {

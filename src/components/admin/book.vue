@@ -77,7 +77,7 @@
                             </span>
                         </td>
                         <td class="py-3 px-4">
-                            <div class="font-medium">{{ book.price }} €</div>
+                            <div class="font-medium">{{ formatPrice(book.price) }}</div>
                             <div class="text-xs" :class="getStockClass(book.stock_quantity)">
                                 {{ book.stock_quantity !== null ? `${book.stock_quantity} en stock` : 'Stock illimité'
                                 }}
@@ -176,7 +176,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="text-sm font-medium leading-none block mb-1">
-                                Prix (€) *
+                                Prix ($) *
                             </label>
                             <input type="number" step="0.01" min="0" v-model="dialogData.price"
                                 class="w-full py-2 px-3 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
@@ -296,8 +296,8 @@
                                     class="border-2 border-dashed border-input rounded-lg p-6 text-center cursor-pointer hover:border-ring transition-normal">
                                     <div v-if="dialogData.extraitdocument">
                                       <FileText class="w-12 mx-auto h-12 text-primary mb-4" />
-                                        <p class="text-sm text-muted-foreground">{{ extraitname }} Cliquer pour changer le
-                                            fichier</p>
+                                        <p class="text-sm text-muted-foreground">Fichier actuel : {{ editExtraitName || 'document enregistré' }}</p>
+                                        <p class="text-sm text-muted-foreground">Cliquer pour changer le fichier</p>
                                     </div>
                                     <div v-else>
                                         <Upload class="w-8 h-8 text-muted-foreground mx-auto mb-2" />
@@ -319,8 +319,8 @@
                                     class="border-2 border-dashed border-input rounded-lg p-6 text-center cursor-pointer hover:border-ring transition-normal">
                                     <div v-if="dialogData.document">
                                         <FileText class="w-12 mx-auto h-12  text-primary mb-4" />
-                                        <p class="text-sm text-muted-foreground">  {{fileName}}Cliquer pour changer le
-                                            fichier</p>
+                                        <p class="text-sm text-muted-foreground">Fichier actuel : {{ editDocName || 'document enregistré' }}</p>
+                                        <p class="text-sm text-muted-foreground">Cliquer pour changer le fichier</p>
                                     </div>
                                     <div v-else>
                                         <Upload class="w-8 h-8 text-muted-foreground mx-auto mb-2" />
@@ -364,6 +364,8 @@
 <script>
 
 import { Plus, Search, Edit, Trash2,FileText, Eye, Upload, X } from 'lucide-vue-next'
+import { formatPrice } from '@/utils/price'
+import { stripNonFileUploads, resolveCoverUrl } from '@/utils/files'
 
 export default {
     name: 'BooksAdminPage',
@@ -386,8 +388,8 @@ export default {
             isDialogOpen: false,
             editingBook: null,
             image: null,
-            fileName :'',
-            extraitname:'',
+            editDocName: '',
+            editExtraitName: '',
             // Données du formulaire du dialog
             dialogData: {
                 title: '',
@@ -464,6 +466,8 @@ export default {
     },
 
     methods: {
+        formatPrice,
+
         // Mise à jour de la recherche
         updateSearchQuery(event) {
             this.searchQuery = event.target.value
@@ -516,13 +520,18 @@ export default {
 
                 status: 1
             }
+            this.image = null
+            this.editDocName = ''
+            this.editExtraitName = ''
             this.isDialogOpen = true
         },
 
         // Ouvrir le dialog d'édition
         openEditDialog(book) {
             this.editingBook = book
-            this.image=book.cover
+            this.image = resolveCoverUrl(book.cover, this.$store.state.bookcover)
+            this.editDocName = book.document || ''
+            this.editExtraitName = book.extraitdocument || ''
             this.dialogData = {
                 extraitdocument:book.extraitdocument ||'',
                 title: book.title,
@@ -551,6 +560,9 @@ export default {
         closeDialog() {
             this.isDialogOpen = false
             this.editingBook = null
+            this.image = null
+            this.editDocName = ''
+            this.editExtraitName = ''
         },
 
         // Sauvegarder le livre
@@ -607,10 +619,10 @@ export default {
 
             
                 // Ajouter un nouveau livre
-               
+                const payload = stripNonFileUploads({ ...this.dialogData }, ['cover', 'document', 'extraitdocument'])
                 const newBook = {
 
-                    ...this.dialogData,
+                    ...payload,
 
                 }
                 let token = localStorage.getItem('token')
@@ -636,6 +648,9 @@ export default {
                     ...this.dialogData,
                     updated_at: new Date().toISOString()
                 })
+                // dialogData.cover peut être un File (aperçu affiché via this.image) :
+                // on remet l'URL d'affichage pour la liste.
+                if (this.image) this.editingBook.cover = this.image
                 this.showToast("Livre mis à jour", "Les modifications ont été enregistrées.")
             } else{
                  this.books.unshift(book)
@@ -738,7 +753,7 @@ export default {
 
             if (file) {
                 this.dialogData.document = file
-                  this.fileName = file.name
+                  this.editDocName = file.name
                
             }
         },
@@ -750,7 +765,7 @@ export default {
 
             if (file) {
                 this.dialogData.extraitdocument = file
-                  this.extraitname = file.name
+                  this.editExtraitName = file.name
                 
             }
         }

@@ -423,6 +423,7 @@ import {
   X,
   Star,
 } from "lucide-vue-next";
+import { stripNonFileUploads, resolveCoverUrl } from "@/utils/files";
 
 export default {
   name: "ArticlesAdminPage",
@@ -542,6 +543,7 @@ export default {
 
     openAddDialog() {
       this.editingArticle = null;
+      this.image = null;
       this.dialogData = {
         title: "",
         slug: "",
@@ -563,7 +565,10 @@ export default {
 
     openEditDialog(article) {
       this.editingArticle = article;
-      this.image = this.$store.state.articlecover + "/" + article.image;
+      this.image = resolveCoverUrl(
+        article.image,
+        this.$store.state.articlecover
+      );
       this.dialogData = {
         title: article.title,
         slug: article.slug,
@@ -589,6 +594,7 @@ export default {
     closeDialog() {
       this.isDialogOpen = false;
       this.editingArticle = null;
+      this.image = null;
     },
 
     async saveArticle() {
@@ -629,8 +635,9 @@ export default {
         : [];
 
       // Ajouter un nouvel article
+      const payload = stripNonFileUploads({ ...this.dialogData }, ["image"]);
       const newArticle = {
-        ...this.dialogData,
+        ...payload,
         tags: tags,
         id: this.editingArticle ? this.editingArticle.id : null,
       };
@@ -650,7 +657,10 @@ export default {
         if (res.status !== 500 || res.status !== 404 || res.status !== 401) {
           let article = res.data.article;
 
-          article.image = res.data.article.image;
+          article.image = resolveCoverUrl(
+            res.data.article.image,
+            this.$store.state.articlecover
+          );
           // article.domain=this.getDomainName(article.domain)
           if (this.editingArticle) {
             // Mettre à jour l'article existant
@@ -659,6 +669,8 @@ export default {
               tags: tags,
               updated_at: new Date().toISOString(),
             });
+            // dialogData.image peut être un File : on remet l'URL d'affichage.
+            if (this.image) this.editingArticle.image = this.image;
             this.showToast(
               "Article mis à jour",
               "Les modifications ont été enregistrées."
