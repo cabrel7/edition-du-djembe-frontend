@@ -639,6 +639,9 @@ export default {
       const newArticle = {
         ...payload,
         tags: tags,
+        // En multipart, axios stringifie les booléens ("false"/"true") que la
+        // règle `boolean` Laravel rejette → 422. On envoie 1/0.
+        featured: this.dialogData.featured ? 1 : 0,
         id: this.editingArticle ? this.editingArticle.id : null,
       };
       let token = localStorage.getItem("token");

@@ -791,7 +791,10 @@ export default {
 
         fields.forEach(field => {
           if (this.form[field] !== null && this.form[field] !== undefined) {
-            formData.append(field, this.form[field])
+            // En multipart les booléens arrivent en "true"/"false" ; le backend
+            // fait !empty() → "false" devenait 1 (à la une à tort). On envoie 0/1.
+            const value = field === 'is_featured' ? (this.form[field] ? 1 : 0) : this.form[field]
+            formData.append(field, value)
           }
         })
 
