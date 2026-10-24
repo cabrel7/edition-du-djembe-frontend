@@ -616,11 +616,19 @@ export default {
       try {
         const response = await this.$store.dispatch('adminFetchPressReview', id)
         const data = response.data
-        
+
+        // cover_image / gallery_images sont stockées en chemin relatif côté
+        // backend ("press-reviews/covers/x.jpg") : résoudre en URL absolue pour
+        // l'affichage. existing_gallery_images reste brut (renvoyé tel quel au
+        // save) ; le save n'envoie cover_image que si un nouveau File est choisi.
+        const origin = this.$store.state.presse
+
         this.form = {
           ...this.form,
           ...data,
           is_published: data.status === 'published',
+          cover_url: data.cover_image ? origin + data.cover_image : '',
+          gallery_images: (data.gallery_images || []).map(p => origin + p),
           existing_gallery_images: data.gallery_images || [],
           existing_documents: data.documents || [],
           meta_title: data.meta_data?.title || '',
@@ -690,6 +698,9 @@ export default {
     },
 
     removeExistingGalleryImage(index) {
+      if (this.form.gallery_images && this.form.gallery_images[index]) {
+        this.form.gallery_images.splice(index, 1)
+      }
       if (this.form.existing_gallery_images && this.form.existing_gallery_images[index]) {
         this.form.existing_gallery_images.splice(index, 1)
       }
