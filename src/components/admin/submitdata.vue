@@ -422,7 +422,7 @@
         <div>
           <label class="text-sm font-medium block mb-1">Sujet *</label>
           <input type="text" v-model="emailForm.subject" maxlength="200"
-            placeholder="Votre soumission — Les Éditions du Djembé"
+            placeholder="Votre soumission | Les Éditions du Djembé"
             class="w-full py-2 px-3 rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
         </div>
         <div>
@@ -729,7 +729,7 @@ export default {
     // Email
     openEmailDialog() {
       this.emailForm = {
-        subject: `Votre soumission « ${this.selectedSubmission.title} » — Les Éditions du Djembé`,
+        subject: `Votre soumission « ${this.selectedSubmission.title} » | Les Éditions du Djembé`,
         message: ''
       }
       this.isEmailDialogOpen = true
