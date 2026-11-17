@@ -228,14 +228,22 @@
   <!-- Modal de visualisation du contact -->
   <div 
     v-if="isModalOpen && selectedContact"
+    role="dialog"
+    aria-modal="true"
+    :aria-label="`Contact de ${selectedContact.name}`"
+    :aria-busy="isModalLocked"
     class="fixed inset-0 animate-fade-in w-full h-screen z-50 bg-foreground/80 flex items-center justify-center p-4"
     @click="closeModal"
   >
     <div 
+      ref="modalPanel"
       class="relative bg-card rounded-lg overflow-hidden max-w-3xl w-full max-h-[90vh] overflow-y-auto"
       @click.stop
     >
       <button
+        type="button"
+        aria-label="Fermer"
+        :disabled="isModalLocked"
         @click="closeModal"
         class="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
       >
@@ -394,7 +402,8 @@ import {
   User, Download, RefreshCw, Inbox 
 } from 'lucide-vue-next'
 import axios from 'axios';
-import { isAlreadyDeleted, ALREADY_DELETED_TOAST } from '@/utils/deletion'
+import { isAlreadyDeleted, isNetworkLost, recheckAfterNetworkLoss, ALREADY_DELETED_TOAST } from '@/utils/deletion'
+import { trapTabKey, focusFirstIn, restoreFocus } from '@/utils/modal'
 export default {
   name: 'ContactsAdminPage',
   
@@ -427,11 +436,17 @@ export default {
       loadError: '',
       isDeleting: false,
       isUpdatingStatus: false,
+      lastFocusedElement: null,
       contacts: []
     }
   },
   
   computed: {
+    // Écriture en cours : la fiche ne peut pas être fermée.
+    isModalLocked() {
+      return this.isDeleting || this.isUpdatingStatus
+    },
+
     filteredContacts() {
       let filtered = this.contacts
       
@@ -534,6 +549,8 @@ export default {
   },
   
   removeContactLocally(contactId) {
+    // La suppression est terminée : lever le verrou avant de fermer la modale.
+    this.isDeleting = false
     this.contacts = this.contacts.filter(c => c.id !== contactId)
     if (this.selectedContact && this.selectedContact.id === contactId) {
       this.closeModal()
@@ -558,6 +575,13 @@ export default {
       if (isAlreadyDeleted(error)) {
         this.removeContactLocally(contactId)
         this.showToast(ALREADY_DELETED_TOAST.title, ALREADY_DELETED_TOAST.description)
+      } else if (isNetworkLost(error)) {
+        await recheckAfterNetworkLoss((t, d) => this.showToast(t, d), () => this.fetchContacts())
+        // Contact absent de la liste rechargée : il a bien été supprimé, on ferme la fiche périmée.
+        if (this.selectedContact && !this.contacts.some(c => c.id === this.selectedContact.id)) {
+          this.isDeleting = false
+          this.closeModal()
+        }
       } else {
         console.error('Erreur lors de la suppression:', error);
         this.showToast("Erreur", "Impossible de supprimer le contact. Réessayez.")
@@ -612,13 +636,27 @@ export default {
     
     // Modal
     viewContact(contact) {
+      // Élément à refocaliser à la fermeture (bouton d'origine).
+      this.lastFocusedElement = document.activeElement
       this.selectedContact = { ...contact }
       this.isModalOpen = true
+      this.$nextTick(() => focusFirstIn(this.$refs.modalPanel))
     },
     
     closeModal() {
+      // Garde dans la méthode (croix, fond, Échap) : pas de fermeture pendant une écriture.
+      if (this.isModalLocked) return
       this.isModalOpen = false
       this.selectedContact = null
+      const origin = this.lastFocusedElement
+      this.lastFocusedElement = null
+      this.$nextTick(() => restoreFocus(origin))
+    },
+    // Échap ferme la fiche ; Tab / Maj+Tab restent dans la modale.
+    onWindowKeydown(event) {
+      if (!this.isModalOpen) return
+      if (event.key === 'Tab') trapTabKey(event, this.$refs.modalPanel)
+      else if (event.key === 'Escape') this.closeModal()
     },
     
     // Actions
@@ -702,7 +740,12 @@ export default {
   },
   
   mounted() {
+    window.addEventListener('keydown', this.onWindowKeydown)
     this.fetchContacts()
+  },
+
+  beforeUnmount() {
+    window.removeEventListener('keydown', this.onWindowKeydown)
   }
 }
 </script>

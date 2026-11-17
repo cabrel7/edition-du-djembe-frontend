@@ -83,7 +83,9 @@
                         </td>
                         <td class="py-3 px-4">
                             <div class="relative w-24 aspect-video rounded overflow-hidden bg-secondary">
-                                <img v-if="thumbnailUrl(video)" :src="thumbnailUrl(video)" :alt="video.title" class="w-full h-full object-cover" />
+                                <ListImage v-if="thumbnailUrl(video)" :src="thumbnailUrl(video)" :alt="video.title" :width="96" :height="54" img-class="w-full h-full object-cover">
+                                    <template #fallback><span class="sr-only">Miniature indisponible</span></template>
+                                </ListImage>
                                 <div class="absolute inset-0 flex items-center justify-center"
                                     :class="thumbnailUrl(video) ? 'bg-foreground/30' : ''">
                                     <Play class="w-6 h-6" :class="thumbnailUrl(video) ? 'text-primary-foreground' : 'text-muted-foreground'" />
@@ -244,12 +246,14 @@
 import { Plus, Search, Edit, Trash2, Play, Upload, X } from 'lucide-vue-next'
 import { stripNonFileUploads, resolveImageUrl } from '@/utils/files'
 import { newIdempotencyKey, idempotencyHeaders, describeIdempotencyFailure } from '@/utils/idempotency'
-import { isAlreadyDeleted, ALREADY_DELETED_TOAST } from '@/utils/deletion'
+import { isAlreadyDeleted, isNetworkLost, recheckAfterNetworkLoss, ALREADY_DELETED_TOAST } from '@/utils/deletion'
+import ListImage from '@/components/admin/ListImage.vue'
 
 export default {
     name: 'VideosAdminPage',
 
     components: {
+        ListImage,
         Plus,
         Search,
         Edit,
@@ -480,6 +484,8 @@ export default {
                 if (isAlreadyDeleted(e)) {
                     this.$store.commit('deleteVideo', id)
                     this.showToast(ALREADY_DELETED_TOAST.title, ALREADY_DELETED_TOAST.description)
+                } else if (isNetworkLost(e)) {
+                    await recheckAfterNetworkLoss((t, d) => this.showToast(t, d), () => this.$store.dispatch('fetchAdminBase'))
                 } else {
                     this.showToast("Erreur", "Impossible de supprimer la vidéo")
                 }

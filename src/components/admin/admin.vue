@@ -52,10 +52,12 @@
               :key="book.id" 
               class="flex items-center gap-4"
             >
-              <img
+              <ListImage
                 :src="book.cover"
                 :alt="book.title"
-                class="w-12 h-16 rounded object-cover"
+                :width="48"
+                :height="64"
+                img-class="w-12 h-16 rounded object-cover"
               />
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium text-foreground truncate">
@@ -94,10 +96,12 @@
               :key="memoir.id" 
               class="flex items-start gap-4"
             >
-                <img
+              <ListImage
               :src="memoir.cover"
               :alt="memoir.title"
-              class="w-16 h-16 rounded object-cover flex-shrink-0"
+              :width="64"
+              :height="64"
+              img-class="w-16 h-16 rounded object-cover flex-shrink-0"
             />
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium text-foreground line-clamp-1">
@@ -134,10 +138,12 @@
             :key="article.id" 
             class="flex items-start gap-3 p-3 rounded-lg bg-secondary"
           >
-            <img
+            <ListImage
               :src="article.image"
               :alt="article.title"
-              class="w-16 h-16 rounded object-cover flex-shrink-0"
+              :width="64"
+              :height="64"
+              img-class="w-16 h-16 rounded object-cover flex-shrink-0"
             />
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-foreground line-clamp-2">
@@ -204,11 +210,13 @@ import {
   Calendar
 } from 'lucide-vue-next'
 import { formatPrice } from '@/utils/price'
+import ListImage from '@/components/admin/ListImage.vue'
 
 export default {
   name: 'AdminDashboardPage',
   
   components: {
+    ListImage,
     BookMarked,
     GraduationCap,
     Newspaper,

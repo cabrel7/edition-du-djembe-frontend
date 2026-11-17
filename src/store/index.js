@@ -4,6 +4,17 @@ import { stripNonFileUploads } from "@/utils/files";
 import { idempotencyHeaders } from "@/utils/idempotency";
 import { isAlreadyDeleted } from "@/utils/deletion";
 
+// Champs éditables envoyés en multipart (jamais id/created_at/updated_at ; l'id va dans l'URL).
+const TEAM_MEMBER_FIELDS = ['nom', 'prenom', 'role', 'email', 'bio', 'display_order', 'is_active', 'social_links', 'photo'];
+const PARTNER_FIELDS = ['nom', 'website', 'description', 'type', 'display_order', 'is_active', 'image'];
+
+function pickFields(source, fields) {
+  return fields.reduce((picked, field) => {
+    if (field in source) picked[field] = source[field];
+    return picked;
+  }, {});
+}
+
 // --------- HELPER GLOBAL POUR AJOUTER L'URL SUR COVER ---------
 function applyCover(items, baseUrl) {
   if (!items) return [];
@@ -984,7 +995,7 @@ export default createStore({
       // photo : seule une nouvelle image (File) est envoyée ; une URL existante est omise.
       // is_active en 1/0 : "false" en multipart est une chaîne truthy côté PHP.
       const payload = {
-        ...stripNonFileUploads(memberData, ['photo']),
+        ...stripNonFileUploads(pickFields(memberData, TEAM_MEMBER_FIELDS), ['photo']),
         is_active: memberData.is_active ? 1 : 0
       };
       
@@ -1022,7 +1033,7 @@ export default createStore({
       // POST pour création ET mise à jour (alias backend POST partners/{id}) :
       // Laravel ne parse pas le multipart d'un PUT.
       const payload = {
-        ...stripNonFileUploads(partnerData, ['image']),
+        ...stripNonFileUploads(pickFields(partnerData, PARTNER_FIELDS), ['image']),
         is_active: partnerData.is_active ? 1 : 0
       };
       

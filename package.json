@@ -6,7 +6,8 @@
     "serve": "node print-ip.js && vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
-    "check:api": "node scripts/check-api-calls.js"
+    "check:api": "node scripts/check-api-calls.js",
+    "test:utils": "node scripts/test-utils.js"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

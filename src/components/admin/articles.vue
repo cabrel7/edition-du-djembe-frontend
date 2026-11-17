@@ -140,10 +140,12 @@
               </div>
             </td>
             <td class="py-3 px-4">
-              <img
+              <ListImage
                 :src="article.image"
                 :alt="article.title"
-                class="w-16 h-10 rounded object-cover"
+                :width="64"
+                :height="40"
+                img-class="w-16 h-10 rounded object-cover"
               />
             </td>
             <td class="py-3 px-4">
@@ -427,12 +429,14 @@ import {
 } from "lucide-vue-next";
 import { stripNonFileUploads, resolveCoverUrl } from "@/utils/files";
 import { newIdempotencyKey, idempotencyHeaders, describeIdempotencyFailure } from "@/utils/idempotency";
-import { isAlreadyDeleted, ALREADY_DELETED_TOAST } from '@/utils/deletion';
+import { isAlreadyDeleted, isNetworkLost, recheckAfterNetworkLoss, ALREADY_DELETED_TOAST } from '@/utils/deletion';
+import ListImage from '@/components/admin/ListImage.vue';
 
 export default {
   name: "ArticlesAdminPage",
 
   components: {
+    ListImage,
     Plus,
   
     Search,
@@ -736,6 +740,8 @@ export default {
         if (isAlreadyDeleted(e)) {
           this.$store.commit("deleteArticle", id);
           this.showToast(ALREADY_DELETED_TOAST.title, ALREADY_DELETED_TOAST.description);
+        } else if (isNetworkLost(e)) {
+          await recheckAfterNetworkLoss((t, d) => this.showToast(t, d), () => this.$store.dispatch('fetchArticles'))
         } else {
           this.showToast(
             "Erreur",

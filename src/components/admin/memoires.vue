@@ -70,7 +70,7 @@
                         class="border-b border-border hover:bg-secondary/50">
                         <td class="py-3 px-4">
                             <div class="flex flex-col gap-1">
-                                <img :src="memoir.cover" :alt="memoir.title" class="w-12 h-16 rounded object-cover" />
+                                <ListImage :src="memoir.cover" :alt="memoir.title" :width="48" :height="64" img-class="w-12 h-16 rounded object-cover" />
                             </div>
                         </td>
                         <td class="py-3 px-4">
@@ -350,8 +350,9 @@
 import { Plus, Search, Edit, Trash2, Download, Upload, X, Eye } from 'lucide-vue-next'
 import { stripNonFileUploads, resolveCoverUrl } from '@/utils/files'
 import { newIdempotencyKey, idempotencyHeaders, describeIdempotencyFailure } from '@/utils/idempotency'
-import { isAlreadyDeleted, ALREADY_DELETED_TOAST } from '@/utils/deletion'
+import { isAlreadyDeleted, isNetworkLost, recheckAfterNetworkLoss, ALREADY_DELETED_TOAST } from '@/utils/deletion'
 import { filenameFromDisposition, saveBlob, downloadErrorMessage, safeFilenameBase } from '@/utils/download'
+import ListImage from '@/components/admin/ListImage.vue'
 
 const HTTP_UNPROCESSABLE = 422
 const DEFAULT_DOCUMENT_EXTENSION = 'pdf'
@@ -360,6 +361,7 @@ export default {
     name: 'MemoirsAdminPage',
 
     components: {
+        ListImage,
         Plus,
         Search,
         Edit,
@@ -711,6 +713,8 @@ export default {
                 if (isAlreadyDeleted(e)) {
                     this.$store.commit('deleteMemoir', id)
                     this.showToast(ALREADY_DELETED_TOAST.title, ALREADY_DELETED_TOAST.description)
+                } else if (isNetworkLost(e)) {
+                    await recheckAfterNetworkLoss((t, d) => this.showToast(t, d), () => this.$store.dispatch('fetchMemoirs'))
                 } else {
                     this.showToast("Erreur", e.response?.data?.message || "Impossible de supprimer le mémoire")
                 }

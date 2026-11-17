@@ -22,6 +22,9 @@
       </div>
     </div>
 
+    <!-- Retour d'action (statut, suppression, téléchargement) : hors modales ouvertes -->
+    <NoticeBanner v-if="!isModalOpen && !isEmailDialogOpen" :notice="notice" @close="notice = null" />
+
     <!-- Erreur de chargement -->
     <div v-if="loadError" role="alert"
       class="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center justify-between gap-4">
@@ -265,6 +268,7 @@
         <X class="w-4 h-4" />
       </button>
       <div class="p-6">
+        <NoticeBanner v-if="!isEmailDialogOpen" :notice="notice" class="mb-4" @close="notice = null" />
         <!-- Header -->
         <div class="flex items-start justify-between mb-6">
           <div>
@@ -455,6 +459,7 @@
         </button>
       </div>
       <div class="p-6 space-y-4">
+        <NoticeBanner :notice="notice" @close="notice = null" />
         <div>
           <label class="text-sm font-medium block mb-1">Destinataire</label>
           <input type="email" :value="selectedSubmission?.email" disabled
@@ -495,16 +500,16 @@ import {
   FileText, CheckCircle, XCircle, Mail 
 } from 'lucide-vue-next'
 import axios from 'axios'
-import { isAlreadyDeleted } from '@/utils/deletion'
-
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+import { isAlreadyDeleted, isNetworkLost } from '@/utils/deletion'
+import { trapTabKey, focusFirstIn } from '@/utils/modal'
+import NoticeBanner from '@/components/admin/NoticeBanner.vue'
 import { filenameFromDisposition, saveBlob, downloadErrorMessage } from '@/utils/download'
 
 export default {
   name: 'AdminSubmissionsPage',
   
   components: {
+    NoticeBanner,
     User,
     Download,
     RefreshCw,
@@ -542,6 +547,7 @@ export default {
       isDeleting: false,
       isSavingStatus: false,
       lastFocusedElement: null,
+      notice: null,
       emailOriginElement: null,
       isLoading: false,
       loadError: '',
@@ -576,6 +582,10 @@ export default {
   },
   
   methods: {
+    showNotice(type, text) {
+      this.notice = { type, text }
+    },
+
     // Échap : ferme le dialogue d'email, sinon la modale ; jamais pendant un envoi,
     // une sauvegarde ou une suppression en cours.
     onWindowKeydown(event) {
@@ -598,23 +608,7 @@ export default {
       const panel = this.isEmailDialogOpen
         ? this.$refs.emailPanel
         : (this.isModalOpen ? this.$refs.modalPanel : null)
-      if (!panel) return
-      const focusables = Array.from(panel.querySelectorAll(FOCUSABLE_SELECTOR))
-      if (focusables.length === 0) {
-        event.preventDefault()
-        return
-      }
-      const first = focusables[0]
-      const last = focusables[focusables.length - 1]
-      const active = document.activeElement
-      const isOutside = !panel.contains(active)
-      if (event.shiftKey && (active === first || isOutside)) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && (active === last || isOutside)) {
-        event.preventDefault()
-        first.focus()
-      }
+      trapTabKey(event, panel)
     },
 
     // Formattage des dates
@@ -752,7 +746,7 @@ export default {
           || `soumission-${submissionId}.pdf`
         saveBlob(new Blob([response.data]), filename)
       } catch (error) {
-        alert(await downloadErrorMessage(error))
+        this.showNotice('error', await downloadErrorMessage(error))
       } finally {
         this.downloadingId = null
       }
@@ -791,11 +785,11 @@ export default {
           this.selectedSubmission.admin_notes = adminNotes
         }
         
-        alert('Statut mis à jour avec succès')
+        this.showNotice('success', 'Statut mis à jour avec succès.')
         
       } catch (error) {
         console.error('Erreur lors de la mise à jour du statut:', error)
-        alert('Impossible de mettre à jour le statut')
+        this.showNotice('error', 'Impossible de mettre à jour le statut.')
       } finally {
         this.isSavingStatus = false
       }
@@ -803,6 +797,8 @@ export default {
     
     async deleteSubmission() {
       if (this.isDeleting) return
+      this.notice = null
+      // Confirmation native conservée : aucun composant de confirmation n'existe.
       if (!confirm('Êtes-vous sûr de vouloir supprimer cette soumission ? Cette action est irréversible.')) {
         return
       }
@@ -820,19 +816,36 @@ export default {
         )
         
         this.removeSubmissionLocally(submissionId)
-        alert('Soumission supprimée avec succès')
+        this.showNotice('success', 'Soumission supprimée avec succès.')
         
       } catch (error) {
         if (isAlreadyDeleted(error)) {
           // Déjà supprimée (double clic, autre onglet) : on retire la ligne, message neutre.
           this.removeSubmissionLocally(submissionId)
-          alert('Cette soumission avait déjà été supprimée.')
+          this.showNotice('info', 'Cette soumission avait déjà été supprimée.')
+        } else if (isNetworkLost(error)) {
+          await this.recheckDeletedSubmission(submissionId)
         } else {
           console.error('Erreur lors de la suppression:', error)
-          alert('Impossible de supprimer la soumission')
+          this.showNotice('error', 'Impossible de supprimer la soumission.')
         }
       } finally {
         this.isDeleting = false
+      }
+    },
+
+    // Connexion perdue pendant le DELETE : le serveur a peut-être supprimé. On recharge la
+    // liste et on dit le résultat ; absente = supprimée (fiche fermée, verrous levés).
+    async recheckDeletedSubmission(submissionId) {
+      this.showNotice('info', 'Connexion interrompue : vérification de la liste…')
+      await this.fetchSubmissions()
+      if (this.loadError) {
+        this.showNotice('error', 'Impossible de vérifier la liste. Actualisez la page puis réessayez.')
+      } else if (!this.submissions.some(s => s.id === submissionId)) {
+        this.removeSubmissionLocally(submissionId)
+        this.showNotice('success', 'Soumission supprimée avec succès.')
+      } else {
+        this.showNotice('error', 'La suppression n\'a pas abouti, vous pouvez réessayer.')
       }
     },
 
@@ -846,6 +859,7 @@ export default {
     
     // Email
     openEmailDialog() {
+      this.notice = null
       this.emailOriginElement = document.activeElement
       this.emailForm = {
         subject: `Votre soumission « ${this.selectedSubmission.title} » | Les Éditions du Djembé`,
@@ -853,8 +867,7 @@ export default {
       }
       this.isEmailDialogOpen = true
       this.$nextTick(() => {
-        const first = this.$refs.emailPanel?.querySelector(FOCUSABLE_SELECTOR)
-        if (first) first.focus()
+        focusFirstIn(this.$refs.emailPanel)
       })
     },
     
@@ -876,7 +889,7 @@ export default {
     
     async sendEmail() {
       if (!this.emailForm.subject.trim() || !this.emailForm.message.trim()) {
-        alert('Le sujet et le message sont requis')
+        this.showNotice('error', 'Le sujet et le message sont requis.')
         return
       }
       
@@ -896,11 +909,11 @@ export default {
         )
         
         this.hideEmailDialog()
-        alert(`Email envoyé à ${this.selectedSubmission.email}`)
+        this.showNotice('success', `Email envoyé à ${this.selectedSubmission.email}.`)
         
       } catch (error) {
         console.error("Erreur lors de l'envoi de l'email:", error)
-        alert(error.response?.data?.message || "Impossible d'envoyer l'email")
+        this.showNotice('error', error.response?.data?.message || "Impossible d'envoyer l'email.")
       } finally {
         this.isSendingEmail = false
       }
@@ -910,6 +923,7 @@ export default {
     viewSubmission(submission) {
       // Élément à refocaliser à la fermeture (ligne ou bouton d'origine).
       this.lastFocusedElement = document.activeElement
+      this.notice = null
       this.selectedSubmission = submission
       this.newStatus = submission.status
       this.adminNotes = submission.admin_notes || ''

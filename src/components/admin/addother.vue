@@ -31,6 +31,15 @@
       </button>
     </div>
 
+    <!-- Erreur d'action (suppression) -->
+    <div v-if="actionError" role="alert"
+      class="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center justify-between gap-4">
+      <p class="text-sm text-destructive">{{ actionError }}</p>
+      <button @click="actionError = ''" class="border border-input bg-background hover:bg-accent px-3 py-2 rounded-md text-sm font-medium">
+        Fermer
+      </button>
+    </div>
+
     <!-- Tabs -->
     <div class="border-b border-border">
       <div class="flex space-x-8">
@@ -115,13 +124,15 @@
             <div class="flex items-start gap-4 mb-4">
               <div class="flex-shrink-0">
                 <div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border-2 border-primary/20">
-                  <img 
-                    v-if="member.photo" 
-                    :src="member.photo" 
+                  <ListImage
+                    :src="member.photo || ''"
                     :alt="member.nom"
-                    class="w-full h-full object-cover"
-                  />
-                  <User class="w-8 h-8 text-primary/60" v-else />
+                    :width="64"
+                    :height="64"
+                    img-class="w-full h-full object-cover"
+                  >
+                    <template #fallback><User class="w-8 h-8 text-primary/60" /></template>
+                  </ListImage>
                 </div>
               </div>
               <div class="flex-1 min-w-0">
@@ -245,13 +256,15 @@
             <!-- Partner Logo -->
             <div class="flex items-center justify-center mb-4">
               <div class="w-32 h-32 rounded-lg bg-secondary/50 flex items-center justify-center overflow-hidden border border-border">
-                <img 
-                  v-if="partner.image" 
-                  :src="partner.image" 
+                <ListImage
+                  :src="partner.image || ''"
                   :alt="partner.nom"
-                  class="w-full h-full object-contain p-4"
-                />
-                <Building2 class="w-12 h-12 text-muted-foreground/50" v-else />
+                  :width="128"
+                  :height="128"
+                  img-class="w-full h-full object-contain p-4"
+                >
+                  <template #fallback><Building2 class="w-12 h-12 text-muted-foreground/50" /></template>
+                </ListImage>
               </div>
             </div>
 
@@ -318,6 +331,7 @@
       v-if="showTeamDialog"
       :member="editingTeamMember"
       :saving="savingTeam"
+      :error="saveError"
       @close="closeDialog"
       @save="saveTeamMember"
     />
@@ -326,6 +340,7 @@
       v-if="showPartnerDialog"
       :partner="editingPartner"
       :saving="savingPartner"
+      :error="saveError"
       @close="closeDialog"
       @save="savePartner"
     />
@@ -340,11 +355,14 @@ import {
 import TeamMemberDialog from '@/components/admin/TeamMemberDialog.vue'
 import PartnerDialog from '@/components/admin/PartnerDialog.vue'
 import { newIdempotencyKey, describeIdempotencyFailure } from '@/utils/idempotency'
+import { isNetworkLost, NETWORK_LOST_TOAST } from '@/utils/deletion'
+import ListImage from '@/components/admin/ListImage.vue'
 
 export default {
   name: 'AdminTeamPartnersPage',
   
   components: {
+    ListImage,
     UserPlus,
     Building2,
     Users,
@@ -370,6 +388,10 @@ export default {
       loadingPartners: false,
       loadError: '',
       deletingIds: [],
+      saveError: '',
+      loadPromise: null,
+      reloadQueued: false,
+      actionError: '',
       savingTeam: false,
       savingPartner: false,
       // Clé d'idempotence du formulaire de création ouvert (null en modification).
@@ -390,6 +412,7 @@ export default {
   async openTeamDialog(member = null) {
     const editing = member && member.id ? member : null
     this.editingTeamMember = editing
+    this.saveError = ''
     this.idempotencyKey = editing ? null : newIdempotencyKey()
     this.showTeamDialog = true
   },
@@ -397,6 +420,7 @@ export default {
   async openPartnerDialog(partner = null) {
     const editing = partner && partner.id ? partner : null
     this.editingPartner = editing
+    this.saveError = ''
     this.idempotencyKey = editing ? null : newIdempotencyKey()
     this.showPartnerDialog = true
   },
@@ -406,6 +430,7 @@ export default {
     this.showPartnerDialog = false
     this.editingTeamMember = null
     this.editingPartner = null
+    this.saveError = ''
   },
 
   // =======================
@@ -417,8 +442,25 @@ export default {
   },
 
   // Charge équipe + partenaires ; erreur visible (bandeau) avec « Réessayer ».
-  async loadData() {
-    if (this.loadingTeam || this.loadingPartners) return
+  // Un seul chargement à la fois ; une demande pendant un chargement en cours en met UN
+  // seul de plus en file (relancé à la fin) et la promesse retournée couvre les deux.
+  loadData() {
+    if (this.loadPromise) {
+      this.reloadQueued = true
+      return this.loadPromise
+    }
+    this.loadPromise = this.runQueuedLoads().finally(() => { this.loadPromise = null })
+    return this.loadPromise
+  },
+
+  async runQueuedLoads() {
+    do {
+      this.reloadQueued = false
+      await this.loadOnce()
+    } while (this.reloadQueued)
+  },
+
+  async loadOnce() {
     this.loadError = ''
     this.loadingTeam = true
     this.loadingPartners = true
@@ -436,6 +478,22 @@ export default {
       this.loadingTeam = false
       this.loadingPartners = false
     }
+  },
+
+  // Échec de suppression : connexion perdue = le serveur a peut-être supprimé, on
+  // recharge la liste pour resynchroniser ; sinon message d'erreur dans le bandeau.
+  async handleDeleteFailure(error) {
+    if (isNetworkLost(error)) {
+      this.actionError = NETWORK_LOST_TOAST.description
+      try {
+        await this.loadData()
+      } finally {
+        // Dans tous les cas : le résultat est visible dans la liste (ou le bandeau d'erreur de chargement).
+        this.actionError = ''
+      }
+      return
+    }
+    this.actionError = 'Erreur lors de la suppression'
   },
 
   // L'écriture a réussi : si seule l'actualisation de la liste échoue, on le dit
@@ -467,12 +525,14 @@ export default {
     // Garde anti double-clic / retry : une requête à la fois.
     if (this.savingTeam) return
     this.savingTeam = true
+    this.saveError = ''
     try {
       const isCreate = !memberData.id
       await this.$store.dispatch('saveTeamMember', { ...memberData, idempotencyKey: isCreate ? this.idempotencyKey : null })
       this.closeDialog()
     } catch (error) {
-      alert(this.describeSaveError(error, 'Erreur lors de la sauvegarde du membre', !memberData.id))
+      // Le dialogue reste ouvert : l'erreur s'affiche dans son bandeau (role="alert").
+      this.saveError = this.describeSaveError(error, 'Erreur lors de la sauvegarde du membre', !memberData.id)
       this.savingTeam = false
       return
     }
@@ -494,7 +554,7 @@ export default {
       await this.$store.dispatch('deleteTeamMember', id)
     } catch (error) {
       console.error(error)
-      alert('Erreur lors de la suppression')
+      await this.handleDeleteFailure(error)
       return
     } finally {
       this.deletingIds = this.deletingIds.filter(i => i !== id)
@@ -514,12 +574,13 @@ export default {
     // Garde anti double-clic / retry : une requête à la fois.
     if (this.savingPartner) return
     this.savingPartner = true
+    this.saveError = ''
     try {
       const isCreate = !partnerData.id
       await this.$store.dispatch('savePartner', { ...partnerData, idempotencyKey: isCreate ? this.idempotencyKey : null })
       this.closeDialog()
     } catch (error) {
-      alert(this.describeSaveError(error, 'Erreur lors de la sauvegarde du partenaire', !partnerData.id))
+      this.saveError = this.describeSaveError(error, 'Erreur lors de la sauvegarde du partenaire', !partnerData.id)
       this.savingPartner = false
       return
     }
@@ -539,7 +600,7 @@ export default {
       await this.$store.dispatch('deletePartner', id)
     } catch (error) {
       console.error(error)
-      alert('Erreur lors de la suppression')
+      await this.handleDeleteFailure(error)
       return
     } finally {
       this.deletingIds = this.deletingIds.filter(i => i !== id)

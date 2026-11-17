@@ -16,3 +16,32 @@ export const ALREADY_DELETED_TOAST = {
   title: 'Déjà supprimé',
   description: 'Cet élément avait déjà été supprimé.'
 }
+
+// Connexion perdue pendant le DELETE (ERR_HTTP2_PROTOCOL_ERROR, ERR_CONNECTION_RESET…) :
+// aucune réponse reçue, alors que le serveur a pu supprimer. L'échec n'est donc pas
+// définitif : on recharge la liste pour resynchroniser l'affichage.
+// Seule une erreur axios sans réponse compte : une Error ordinaire (bug local,
+// `success:false` rejeté par le store) n'est PAS une perte de connexion.
+export function isNetworkLost(error) {
+  return Boolean(error) && error.isAxiosError === true && !error.response && error.code !== 'ERR_CANCELED'
+}
+
+export const NETWORK_LOST_TOAST = {
+  title: 'Vérification',
+  description: 'Connexion interrompue : vérification de la liste…'
+}
+const RECHECK_FAILED_TOAST = {
+  title: 'Erreur',
+  description: 'Impossible de vérifier la liste. Actualisez la page puis réessayez.'
+}
+
+// Informe l'utilisateur puis recharge la liste (`reload`). `notify(title, description)`
+// est le showToast du composant.
+export async function recheckAfterNetworkLoss(notify, reload) {
+  notify(NETWORK_LOST_TOAST.title, NETWORK_LOST_TOAST.description)
+  try {
+    await reload()
+  } catch (error) {
+    notify(RECHECK_FAILED_TOAST.title, RECHECK_FAILED_TOAST.description)
+  }
+}

@@ -64,7 +64,7 @@
                     <tr v-for="book in filteredBooks" :key="book.id"
                         class="border-b border-border hover:bg-secondary/50">
                         <td class="py-3 px-4">
-                            <img :src="book.cover" :alt="book.title" class="w-12 h-16 rounded object-cover" />
+                            <ListImage :src="book.cover" :alt="book.title" :width="48" :height="64" img-class="w-12 h-16 rounded object-cover" />
                         </td>
                         <td class="py-3 px-4">
                             <div class="font-medium">{{ book.title }}</div>
@@ -370,12 +370,14 @@ import { Plus, Search, Edit, Trash2,FileText, Eye, Upload, X } from 'lucide-vue-
 import { formatPrice } from '@/utils/price'
 import { stripNonFileUploads, resolveCoverUrl } from '@/utils/files'
 import { newIdempotencyKey, idempotencyHeaders, describeIdempotencyFailure } from '@/utils/idempotency'
-import { isAlreadyDeleted, ALREADY_DELETED_TOAST } from '@/utils/deletion'
+import { isAlreadyDeleted, isNetworkLost, recheckAfterNetworkLoss, ALREADY_DELETED_TOAST } from '@/utils/deletion'
+import ListImage from '@/components/admin/ListImage.vue'
 
 export default {
     name: 'BooksAdminPage',
 
     components: {
+        ListImage,
         Plus,
         FileText,
         Search,
@@ -703,6 +705,8 @@ export default {
                 if (isAlreadyDeleted(e)) {
                     this.$store.commit('deleteBook', id)
                     this.showToast(ALREADY_DELETED_TOAST.title, ALREADY_DELETED_TOAST.description)
+                } else if (isNetworkLost(e)) {
+                    await recheckAfterNetworkLoss((t, d) => this.showToast(t, d), () => this.$store.dispatch('fetchBooks'))
                 } else {
                     this.showToast("Erreur", e.response?.data?.message || "Impossible de supprimer le livre")
                 }

@@ -183,6 +183,12 @@
             </div>
           </div>
 
+          <!-- Erreur d'enregistrement : le dialogue reste ouvert -->
+          <div v-if="error" role="alert"
+            class="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">
+            {{ error }}
+          </div>
+
           <!-- Actions -->
           <div class="flex justify-end gap-2 pt-4 border-t border-border">
             <button 
@@ -228,6 +234,11 @@ export default {
     saving: {
       type: Boolean,
       default: false
+    },
+    // Message d'échec d'enregistrement (affiché dans le dialogue, qui reste ouvert)
+    error: {
+      type: String,
+      default: ''
     }
   },
   

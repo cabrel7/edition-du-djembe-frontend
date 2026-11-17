@@ -124,6 +124,8 @@
       </button>
     </div>
 
+    <NoticeBanner :notice="actionNotice" @close="actionNotice = null" />
+
     <!-- Erreur d'action (statut, mise à la une, duplication) -->
     <div v-if="actionError" role="alert"
       class="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center justify-between gap-4">
@@ -162,15 +164,19 @@
               <td class="py-3 px-4">
                 <div class="flex items-center gap-3">
                   <div class="w-10 h-10 rounded bg-secondary overflow-hidden flex-shrink-0">
-                    <img 
-                      v-if="review.cover_image"
-                      :src="$store.state.presse+review.cover_image" 
+                    <ListImage
+                      :src="review.cover_image ? $store.state.presse + review.cover_image : ''"
                       :alt="review.title"
-                      class="w-full h-full object-cover"
-                    />
-                    <div v-else class="w-full h-full bg-secondary flex items-center justify-center">
-                      <Newspaper class="w-4 h-4 text-muted-foreground" />
-                    </div>
+                      :width="40"
+                      :height="40"
+                      img-class="w-full h-full object-cover"
+                    >
+                      <template #fallback>
+                        <div class="w-full h-full bg-secondary flex items-center justify-center">
+                          <Newspaper class="w-4 h-4 text-muted-foreground" />
+                        </div>
+                      </template>
+                    </ListImage>
                   </div>
                   <div>
                     <p class="font-medium line-clamp-1">{{ review.title }}</p>
@@ -314,7 +320,9 @@ import {
   Newspaper
 } from 'lucide-vue-next'
 import { newIdempotencyKey, describeIdempotencyFailure } from '@/utils/idempotency'
-import { isAlreadyDeleted } from '@/utils/deletion'
+import { isAlreadyDeleted, isNetworkLost, NETWORK_LOST_TOAST } from '@/utils/deletion'
+import ListImage from '@/components/admin/ListImage.vue'
+import NoticeBanner from '@/components/admin/NoticeBanner.vue'
 
 const DUPLICATE_TITLE_PREFIX = 'Copie de '
 // Longueur max du titre acceptée par le backend (validation title max:255).
@@ -332,6 +340,8 @@ export default {
   name: 'AdminPressReviews',
 
   components: {
+    ListImage,
+    NoticeBanner,
     Plus,
     RefreshCw,
     Edit,
@@ -371,6 +381,7 @@ export default {
       // Clé de la duplication en cours : réutilisée au retry pour la même revue.
       duplicateKey: null,
       actionError: '',
+      actionNotice: null,
       searchTimeout: null
     }
   },
@@ -546,6 +557,7 @@ export default {
 
     async deleteReview(id) {
       if (this.deletingId !== null) return
+      this.actionNotice = null
       if (confirm('Êtes-vous sûr de vouloir supprimer cet article ? Cette action est irréversible.')) {
         this.deletingId = id
         try {
@@ -555,6 +567,18 @@ export default {
           if (isAlreadyDeleted(error)) {
             // Déjà supprimé : la liste rechargée retire la ligne, sans erreur.
             this.loadData()
+          } else if (isNetworkLost(error)) {
+            // Le serveur a peut-être supprimé : on recharge la liste (vérification).
+            this.actionError = NETWORK_LOST_TOAST.description
+            await this.loadData()
+            if (this.loadError) {
+              this.actionError = 'Impossible de vérifier la liste. Actualisez la page puis réessayez.'
+            } else if (this.pressReviews.some(review => review.id === id)) {
+              this.actionError = 'La suppression n\'a pas abouti, vous pouvez réessayer.'
+            } else {
+              this.actionError = ''
+              this.actionNotice = { type: 'success', text: 'Revue supprimée.' }
+            }
           } else {
             alert(error.response?.data?.message || 'Impossible de supprimer l\'article.')
           }

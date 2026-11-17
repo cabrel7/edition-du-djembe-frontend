@@ -226,7 +226,7 @@
 <script>
 import { Plus, Search, Edit, Trash2, X, Power } from 'lucide-vue-next'
 import { newIdempotencyKey, idempotencyHeaders, describeIdempotencyFailure } from '@/utils/idempotency'
-import { isAlreadyDeleted, ALREADY_DELETED_TOAST } from '@/utils/deletion'
+import { isAlreadyDeleted, isNetworkLost, recheckAfterNetworkLoss, ALREADY_DELETED_TOAST } from '@/utils/deletion'
 
 export default {
     name: 'AdminDomainesPage',
@@ -466,6 +466,8 @@ export default {
                 if (isAlreadyDeleted(e)) {
                     this.$store.commit('deleteDomain', id)
                     this.showToast(ALREADY_DELETED_TOAST.title, ALREADY_DELETED_TOAST.description)
+                } else if (isNetworkLost(e)) {
+                    await recheckAfterNetworkLoss((t, d) => this.showToast(t, d), () => this.$store.dispatch('fetchAdminBase'))
                 } else {
                     this.showToast("Erreur", e.response?.data?.message || "Impossible de supprimer le domaine")
                 }
