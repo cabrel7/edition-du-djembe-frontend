@@ -364,7 +364,9 @@ export default {
 
             // Vérifier l'unicité du slug (sauf pour l'édition)
             const existingSlug = this.domaines.find(d =>
-                d.slug === this.dialogData.slug &&
+                // Le slug n'est pas persisté côté API : sans valeur, undefined === undefined
+                // faisait croire à un doublon à chaque modification.
+                this.dialogData.slug && d.slug === this.dialogData.slug &&
                 (!this.editingDomaine || d.id !== this.editingDomaine.id)
             )
             if (existingSlug) {
