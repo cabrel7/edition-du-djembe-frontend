@@ -399,9 +399,11 @@
             </button>
             <button
               @click="saveArticle"
-              class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all"
+              :disabled="isSaving"
+              :aria-busy="isSaving"
+              class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {{ editingArticle ? "Enregistrer" : "Créer" }}
+              {{ isSaving ? "Enregistrement..." : (editingArticle ? "Enregistrer" : "Créer") }}
             </button>
           </div>
         </div>
@@ -461,10 +463,10 @@ export default {
         "Partenariats",
       ],
       image: null,
-      // Données du formulaire du dialog
+      isSaving: false,
+      // Données du formulaire du dialog (le slug est généré côté serveur)
       dialogData: {
         title: "",
-        slug: "",
         category: "",
         author: '', // ID d'auteur
         excerpt: "",
@@ -546,7 +548,6 @@ export default {
       this.image = null;
       this.dialogData = {
         title: "",
-        slug: "",
         category: "",
         author: '',
         excerpt: "",
@@ -571,7 +572,6 @@ export default {
       );
       this.dialogData = {
         title: article.title,
-        slug: article.slug,
         category: article.category,
         author: article.author,
 
@@ -598,6 +598,9 @@ export default {
     },
 
     async saveArticle() {
+      // Garde anti double-clic / retry : une requête à la fois.
+      if (this.isSaving) return;
+
       // Validation
       if (!this.dialogData.title.trim()) {
         alert("Le titre est requis");
@@ -612,18 +615,6 @@ export default {
       if (!this.dialogData.excerpt.trim()) {
         alert("L'extrait est requis");
         return;
-      }
-
-      // Générer le slug si vide
-      if (this.dialogData.title) {
-        this.dialogData.slug = this.dialogData.title
-         .toLowerCase()
-    // Autorise lettres (avec accents), chiffres et tirets
-    .replace(/[^a-z0-9àâäéèêëîïôöùûüç-]+/gi, '-')
-    // Regroupe tous les tirets multiples en un seul
-    .replace(/-+/g, '-')
-    // Supprime les tirets au début et à la fin
-    .replace(/^-+|-+$/g, '');
       }
 
       // Convertir les tags
@@ -644,56 +635,44 @@ export default {
         featured: this.dialogData.featured ? 1 : 0,
         id: this.editingArticle ? this.editingArticle.id : null,
       };
-      let token = localStorage.getItem("token");
 
+      this.isSaving = true;
       try {
         const res = await this.axios.post(
           this.$store.state.localhost + "saveArticle",
           newArticle,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "multipart/form-data",
-            },
-          }
+          { headers: { "Content-Type": "multipart/form-data" } }
         );
-        if (res.status !== 500 || res.status !== 404 || res.status !== 401) {
-          let article = res.data.article;
 
-          article.image = resolveCoverUrl(
+        // Objet serveur (avec id et slug réel) : jamais la copie du formulaire.
+        const article = {
+          ...res.data.article,
+          image: resolveCoverUrl(
             res.data.article.image,
             this.$store.state.articlecover
+          ),
+        };
+        if (this.editingArticle) {
+          Object.assign(this.editingArticle, article);
+          this.showToast(
+            "Article mis à jour",
+            "Les modifications ont été enregistrées."
           );
-          // article.domain=this.getDomainName(article.domain)
-          if (this.editingArticle) {
-            // Mettre à jour l'article existant
-            Object.assign(this.editingArticle, {
-              ...this.dialogData,
-              tags: tags,
-              updated_at: new Date().toISOString(),
-            });
-            // dialogData.image peut être un File : on remet l'URL d'affichage.
-            if (this.image) this.editingArticle.image = this.image;
-            this.showToast(
-              "Article mis à jour",
-              "Les modifications ont été enregistrées."
-            );
-          } else {
-            this.articles.unshift(article);
-          }
-          this.image = null;
-          this.closeDialog();
-          // this.showToast("Article créé", "L'article a été créé avec succès.")
+        } else {
+          this.articles.unshift(article);
+          this.showToast("Article créé", "L'article a été créé avec succès.");
         }
+        this.closeDialog();
       } catch (e) {
-        // tu gères → plus d'erreur console
-        // console.log("yo",e.message)
-        this.showToast(e.message, "");
+        const errors = e.response?.data?.errors;
+        const detail = errors ? Object.values(errors).flat().join(" ") : "";
+        this.showToast(
+          "Erreur",
+          detail || e.response?.data?.message || e.message || "Impossible d'enregistrer l'article"
+        );
+      } finally {
+        this.isSaving = false;
       }
-
-      // }catch(()=>{
-
-      // })
     },
 
     viewArticle(article) {
@@ -724,20 +703,21 @@ export default {
 
     async deleteArticle(id) {
       if (confirm("Êtes-vous sûr de vouloir supprimer cet article ?")) {
-        let token = localStorage.getItem("token");
-        await this.axios
-          .delete(this.$store.state.localhost + `deleteArticle/${id}`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          })
-          .then(() => {
-            this.$store.commit("deleteArticle", id);
-            this.showToast(
-              "Article supprimé",
-              "L'article a été supprimé avec succès."
-            );
-          });
+        try {
+          await this.axios.delete(
+            this.$store.state.localhost + `deleteArticle/${id}`
+          );
+          this.$store.commit("deleteArticle", id);
+          this.showToast(
+            "Article supprimé",
+            "L'article a été supprimé avec succès."
+          );
+        } catch (e) {
+          this.showToast(
+            "Erreur",
+            e.response?.data?.message || "Impossible de supprimer l'article"
+          );
+        }
       }
     },
 

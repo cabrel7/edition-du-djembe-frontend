@@ -182,10 +182,11 @@
             </button>
             <button 
               type="submit"
-              class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all"
-              :disabled="loading"
+              class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              :disabled="saving"
+              :aria-busy="saving"
             >
-              {{ loading ? 'Enregistrement...' : (partner ? "Enregistrer" : "Ajouter") }}
+              {{ saving ? 'Enregistrement...' : (partner ? "Enregistrer" : "Ajouter") }}
             </button>
           </div>
         </form>
@@ -210,6 +211,11 @@ export default {
     partner: {
       type: Object,
       default: null
+    },
+    // État d'envoi piloté par le parent (qui possède la requête)
+    saving: {
+      type: Boolean,
+      default: false
     }
   },
   
@@ -224,8 +230,7 @@ export default {
         type: '',
         display_order: 1,
         is_active: true
-      },
-      loading: false
+      }
     }
   },
   
@@ -269,13 +274,10 @@ export default {
       }
     },
     
-    async handleSubmit() {
-      this.loading = true
-      try {
-        await this.$emit('save', this.form)
-      } finally {
-        this.loading = false
-      }
+    handleSubmit() {
+      // Garde anti double-soumission (Entrée / double clic)
+      if (this.saving) return
+      this.$emit('save', this.form)
     }
   }
 }

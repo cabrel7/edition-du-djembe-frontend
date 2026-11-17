@@ -16,8 +16,20 @@ export function stripNonFileUploads(payload, keys) {
 
 // applyCover du store préfixe déjà cover/photo/image en URLs complètes :
 // préfixer à nouveau donnerait base/https://… (aperçus cassés).
+// Les URLs absolues et les aperçus locaux (data:/blob:) ne sont jamais préfixés.
 export function resolveCoverUrl(value, baseUrl) {
   if (!value) return null
-  if (/^https?:\/\//.test(value)) return value
+  if (/^(https?:\/\/|data:|blob:)/.test(value)) return value
   return `${baseUrl}/${value}`
+}
+
+const IMAGE_EXTENSION_RE = /\.(jpe?g|png|gif|webp|avif|svg)(\?.*)?$/i
+
+// Vignette affichable : uniquement une vraie image. Un champ vide ou pointant
+// vers un fichier non image (ex. .mp4) donne null → l'appelant affiche un placeholder.
+export function resolveImageUrl(value, baseUrl) {
+  if (!value) return null
+  if (/^(data:image\/|blob:)/.test(value)) return value
+  if (!IMAGE_EXTENSION_RE.test(value)) return null
+  return resolveCoverUrl(value, baseUrl)
 }

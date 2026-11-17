@@ -209,9 +209,9 @@
                             class="border border-input bg-background hover:bg-accent hover:text-accent-foreground px-4 py-2 rounded-md font-medium">
                             Annuler
                         </button>
-                        <button @click="saveDomaine"
-                            class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all">
-                            {{ editingDomaine ? "Enregistrer" : "Créer" }}
+                        <button @click="saveDomaine" :disabled="isSaving" :aria-busy="isSaving"
+                            class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                            {{ isSaving ? "Enregistrement..." : (editingDomaine ? "Enregistrer" : "Créer") }}
                         </button>
                     </div>
                 </div>
@@ -242,6 +242,7 @@ export default {
             isDialogOpen: false,
             editingDomaine: null,
             errors: [],
+            isSaving: false,
 
             // Données du formulaire du dialog
             dialogData: {
@@ -378,59 +379,36 @@ export default {
 
         // Sauvegarder le domaine
       async  saveDomaine() {
-            if (!this.validateForm()) {
+            // Garde anti double-clic / retry : une requête à la fois.
+            if (this.isSaving || !this.validateForm()) {
                 return
             }
 
-           
-            // Ajouter un nouveau domaine
-            const newDomaine = {
-              
-                ...this.dialogData,
-           
-            }
-             let token = localStorage.getItem('token')
+            this.isSaving = true
             try {
                 const res = await this.axios.post(
                     this.$store.state.localhost + 'saveDomaine',
-                    newDomaine,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-
-                        }
-                    }
+                    { ...this.dialogData }
                 )
 
-                if (res.status !== 500 || res.status !== 404 || res.status !== 401) {
-                     if (this.editingDomaine) {
-                // Mettre à jour le domaine existant
-                Object.assign(this.editingDomaine, {
-                    ...this.dialogData,
-                    updated_at: new Date().toISOString()
-                })
-
-                this.showToast("Domaine mis à jour", "Les modifications ont été enregistrées.")
-            }else{
-                 this.domaines.unshift(newDomaine)
-            this.showToast("Domaine créé", "Le domaine a été créé avec succès.")
-            }
-                  
-                    this.closeDialog()
-                  
+                // L'objet renvoyé par le serveur porte l'id : indispensable pour
+                // qu'une modification ultérieure mette à jour au lieu de dupliquer.
+                const saved = res.data.domaine
+                if (this.editingDomaine) {
+                    Object.assign(this.editingDomaine, saved)
+                    this.showToast("Domaine mis à jour", "Les modifications ont été enregistrées.")
+                } else {
+                    this.domaines.unshift(saved)
+                    this.showToast("Domaine créé", "Le domaine a été créé avec succès.")
                 }
-                console.log(res)
-
+                this.closeDialog()
             } catch (e) {
-                // tu gères → plus d'erreur console
-                // console.log("yo",e.message)
-                this.showToast(e.message, '')
+                const message = e.response?.data?.message || e.message || "Impossible d'enregistrer le domaine"
+                this.errors = [message]
+                this.showToast("Erreur", message)
+            } finally {
+                this.isSaving = false
             }
-          
-
-
-           
-           
         },
 
         // Changer le statut (actif/inactif)
@@ -465,15 +443,13 @@ export default {
             if (!domaine) return
            
             if (confirm(`Êtes-vous sûr de vouloir supprimer le domaine "${domaine.name}" ? Cette action est irréversible.`)) {
-             
-                   let token =localStorage.getItem('token')
-                await this.axios.delete(this.$store.state.localhost+`deleteDomaine/${id}`, {headers:{
-                    Authorization: `Bearer ${token}`
-                }}).then(()=>{
+                try {
+                    await this.axios.delete(this.$store.state.localhost + `deleteDomaine/${id}`)
                     this.$store.commit('deleteDomain', id)
-                this.showToast("Domaine supprimé", "Le domaine a été supprimé avec succès.")
-            })
-                
+                    this.showToast("Domaine supprimé", "Le domaine a été supprimé avec succès.")
+                } catch (e) {
+                    this.showToast("Erreur", e.response?.data?.message || "Impossible de supprimer le domaine")
+                }
             }
         },
 
@@ -486,10 +462,6 @@ export default {
             this.$emit('showtoast',message)
             
         }
-    },
-
-    mounted() {
-        console.log('Admin domaines page mounted')
     }
 }
 </script>

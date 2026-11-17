@@ -350,9 +350,9 @@
                             class="border border-input bg-background hover:bg-accent hover:text-accent-foreground px-4 py-2 rounded-md font-medium">
                             Annuler
                         </button>
-                        <button @click="saveBook"
-                            class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all">
-                            {{ editingBook ? "Enregistrer" : "Ajouter" }}
+                        <button @click="saveBook" :disabled="isSaving" :aria-busy="isSaving"
+                            class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                            {{ isSaving ? "Enregistrement..." : (editingBook ? "Enregistrer" : "Ajouter") }}
                         </button>
                     </div>
                 </div>
@@ -387,6 +387,7 @@ export default {
             filterStatus: 'all',
             isDialogOpen: false,
             editingBook: null,
+            isSaving: false,
             image: null,
             editDocName: '',
             editExtraitName: '',
@@ -402,7 +403,6 @@ export default {
                 price: 0,
                 isbn: '',
                 amazon_url: '',
-                slug:'',
                 pages: 0,
                 document: null,
                 stock_quantity: null,
@@ -567,20 +567,13 @@ export default {
 
         // Sauvegarder le livre
         async saveBook() {
+            // Garde anti double-clic / retry : une requête à la fois.
+            if (this.isSaving) return
+
             // Validation
             if (!this.dialogData.title.trim()) {
                 alert("Le titre est requis")
                 return
-            }
-             if ( this.dialogData.title.trim()) {
-                this.dialogData.slug = this.dialogData.title
-                   .toLowerCase()
-    // Autorise lettres (avec accents), chiffres et tirets
-    .replace(/[^a-z0-9àâäéèêëîïôöùûüç-]+/gi, '-')
-    // Regroupe tous les tirets multiples en un seul
-    .replace(/-+/g, '-')
-    // Supprime les tirets au début et à la fin
-    .replace(/^-+|-+$/g, '');
             }
             if (!this.dialogData.author) {
                 alert("L'auteur est requis")
@@ -617,62 +610,38 @@ export default {
                 return
             }
 
-            
-                // Ajouter un nouveau livre
-                const payload = stripNonFileUploads({ ...this.dialogData }, ['cover', 'document', 'extraitdocument'])
-                const newBook = {
+            // Le slug est généré côté serveur (jamais envoyé ni régénéré côté client).
+            const payload = stripNonFileUploads({ ...this.dialogData }, ['cover', 'document', 'extraitdocument'])
 
-                    ...payload,
+            this.isSaving = true
+            try {
+                const res = await this.axios.post(
+                    this.$store.state.localhost + 'saveBook',
+                    payload,
+                    { headers: { "Content-Type": "multipart/form-data" } }
+                )
 
+                // Objet serveur (avec id) : jamais la copie du formulaire.
+                const book = {
+                    ...res.data.book,
+                    cover: resolveCoverUrl(res.data.book.cover, this.$store.state.bookcover)
                 }
-                let token = localStorage.getItem('token')
-                try {
-                    const res = await this.axios.post(
-                        this.$store.state.localhost + 'saveBook',
-                        newBook,
-                        {
-                            headers: {
-                                Authorization: `Bearer ${token}`,
-                                "Content-Type": "multipart/form-data"
-                            }
-                        }
-                    )
-
-                    if (res.status !== 500 || res.status !== 404 || res.status !== 401) {
-                          let book = res.data.book
-                      
-                        book.cover = this.$store.state.bookcover + '/' + book.cover
-                        if (this.editingBook) {
-                // Mettre à jour le livre existant
-                Object.assign(this.editingBook, {
-                    ...this.dialogData,
-                    updated_at: new Date().toISOString()
-                })
-                // dialogData.cover peut être un File (aperçu affiché via this.image) :
-                // on remet l'URL d'affichage pour la liste.
-                if (this.image) this.editingBook.cover = this.image
-                this.showToast("Livre mis à jour", "Les modifications ont été enregistrées.")
-            } else{
-                 this.books.unshift(book)
-                        this.image = null
-                          this.showToast("Livre ajouté", "Le livre a été ajouté avec succès.")
+                if (this.editingBook) {
+                    Object.assign(this.editingBook, book)
+                    this.showToast("Livre mis à jour", "Les modifications ont été enregistrées.")
+                } else {
+                    this.books.unshift(book)
+                    this.showToast("Livre ajouté", "Le livre a été ajouté avec succès.")
+                }
+                // Fermeture uniquement après succès : en cas d'erreur le dialogue reste ouvert.
+                this.closeDialog()
+            } catch (e) {
+                const errors = e.response?.data?.errors
+                const detail = errors ? Object.values(errors).flat().join(' ') : ''
+                this.showToast("Erreur", detail || e.response?.data?.message || e.message || "Impossible d'enregistrer le livre")
+            } finally {
+                this.isSaving = false
             }
-                       
-                        this.closeDialog()
-
-                      
-                    }
-                    console.log(res)
-
-                } catch (e) {
-                    // tu gères → plus d'erreur console
-                    // console.log("yo",e.message)
-                    this.showToast(e.message, '')
-                }
-
-            
-
-            this.closeDialog()
         },
 
         // Voir un livre
@@ -703,15 +672,13 @@ export default {
         // Supprimer un livre
       async  deleteBook(id) {
             if (confirm("Êtes-vous sûr de vouloir supprimer ce livre ?")) {
-                
-                   let token =localStorage.getItem('token')
-                await this.axios.delete(this.$store.state.localhost+`deleteBook/${id}`, {headers:{
-                    Authorization: `Bearer ${token}`
-                }}).then(()=>{
+                try {
+                    await this.axios.delete(this.$store.state.localhost + `deleteBook/${id}`)
                     this.$store.commit('deleteBook', id)
-                this.showToast("Livre supprimé", "Le livre a été supprimé avec succès.")
-                })
-                
+                    this.showToast("Livre supprimé", "Le livre a été supprimé avec succès.")
+                } catch (e) {
+                    this.showToast("Erreur", e.response?.data?.message || "Impossible de supprimer le livre")
+                }
             }
         },
 

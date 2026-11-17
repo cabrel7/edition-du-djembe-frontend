@@ -82,10 +82,11 @@
                             </span>
                         </td>
                         <td class="py-3 px-4">
-                            <div class="relative w-24 aspect-video rounded overflow-hidden">
-                                <img  :src="resolveCoverUrl(video.thumbnail, $store.state.videocover)" :alt="video.title" class="w-full h-full object-cover" />
-                                <div  class="absolute inset-0 bg-foreground/30 flex items-center justify-center">
-                                    <Play class="w-6 h-6 text-primary-foreground" />
+                            <div class="relative w-24 aspect-video rounded overflow-hidden bg-secondary">
+                                <img v-if="thumbnailUrl(video)" :src="thumbnailUrl(video)" :alt="video.title" class="w-full h-full object-cover" />
+                                <div class="absolute inset-0 flex items-center justify-center"
+                                    :class="thumbnailUrl(video) ? 'bg-foreground/30' : ''">
+                                    <Play class="w-6 h-6" :class="thumbnailUrl(video) ? 'text-primary-foreground' : 'text-muted-foreground'" />
                                 </div>
                             </div>
                         </td>
@@ -225,9 +226,9 @@
                         Annuler
                     </button>
                     <button @click="saveVideo"
-                        class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all"
-                        :disabled="!isFormValid">
-                        {{ editingVideo ? "Enregistrer" : "Ajouter" }}
+                        class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                        :disabled="!isFormValid || isSaving" :aria-busy="isSaving">
+                        {{ isSaving ? "Enregistrement..." : (editingVideo ? "Enregistrer" : "Ajouter") }}
                     </button>
                 </div>
             </div>
@@ -238,7 +239,7 @@
 <script>
     
 import { Plus, Search, Edit, Trash2, Play, Upload, X, Eye } from 'lucide-vue-next'
-import { stripNonFileUploads, resolveCoverUrl } from '@/utils/files'
+import { stripNonFileUploads, resolveImageUrl } from '@/utils/files'
 
 export default {
     name: 'VideosAdminPage',
@@ -258,6 +259,7 @@ export default {
         return {
             imagePreview: null,
             fileError: null,
+            isSaving: false,
             searchQuery: '',
             filterStatus: 'all',
             isDialogOpen: false,
@@ -312,7 +314,10 @@ export default {
     },
 
     methods: {
-        resolveCoverUrl,
+        // Vignette réelle (image) ou null → placeholder dans le template.
+        thumbnailUrl(video) {
+            return resolveImageUrl(video.thumbnail, this.$store.state.videocover)
+        },
 
         updateSearchQuery(event) {
             this.searchQuery = event.target.value
@@ -352,7 +357,7 @@ export default {
         openEditDialog(video) {
             this.editingVideo = video
             this.fileError = null
-            this.imagePreview = resolveCoverUrl(video.thumbnail, this.$store.state.videocover)
+            this.imagePreview = this.thumbnailUrl(video)
             this.dialogData = {
                 title: video.title,
                 id: video.id,
@@ -377,6 +382,9 @@ export default {
         },
 
         async saveVideo() {
+            // Garde anti double-clic / retry : une requête à la fois.
+            if (this.isSaving) return
+
             // Validation
             if (!this.dialogData.title.trim()) {
                 this.showToast("Erreur", "Le titre est requis")
@@ -403,41 +411,31 @@ export default {
                 ...payload,
             }
           
-            let token = localStorage.getItem('token')
+            this.isSaving = true
             try {
                 const res = await this.axios.post(
                     this.$store.state.localhost + 'saveVideo',
                     newVideo,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                            "Content-Type": "multipart/form-data"
-                        }
-                    }
+                    { headers: { "Content-Type": "multipart/form-data" } }
                 )
 
-                if (res.status !== 500 && res.status !== 404 && res.status !== 401) {
-                    let video = res.data.video
-                    video.image = this.$store.state.videocover + '/' + video.image
-                       
-                    if (this.editingVideo) {
-                        // Mettre à jour la vidéo existante
-                        Object.assign(this.editingVideo, {
-                            ...this.dialogData,
-                            updated_at: new Date().toISOString()
-                        })
-                        // dialogData.thumbnail peut être un File : URL d'affichage pour la liste.
-                        if (this.imagePreview) this.editingVideo.thumbnail = this.imagePreview
-                        this.showToast("Vidéo mise à jour", "Les modifications ont été enregistrées.")
-                    } else {
-                        this.videos.unshift(video)
-                        this.showToast("Vidéo ajoutée", "La vidéo a été ajoutée avec succès.")
-                    }
-                   
-                    this.closeDialog()
+                // Objet serveur : `thumbnail` = nom de fichier stocké (résolu à l'affichage).
+                // Jamais de data URL ici : elle ne sert qu'à l'aperçu local du dialogue.
+                const video = res.data.video
+                if (this.editingVideo) {
+                    Object.assign(this.editingVideo, video)
+                    this.showToast("Vidéo mise à jour", "Les modifications ont été enregistrées.")
+                } else {
+                    this.videos.unshift(video)
+                    this.showToast("Vidéo ajoutée", "La vidéo a été ajoutée avec succès.")
                 }
+                this.closeDialog()
             } catch (e) {
-                this.showToast("Erreur", e.message || "Une erreur est survenue")
+                const errors = e.response?.data?.errors
+                const detail = errors ? Object.values(errors).flat().join(' ') : ''
+                this.showToast("Erreur", detail || e.response?.data?.message || e.message || "Une erreur est survenue")
+            } finally {
+                this.isSaving = false
             }
         },
 
@@ -452,13 +450,8 @@ export default {
 
         async deleteVideo(id) {
             if (confirm("Êtes-vous sûr de vouloir supprimer cette vidéo ?")) {
-                let token = localStorage.getItem('token')
                 try {
-                    await this.axios.delete(this.$store.state.localhost + `deleteVideo/${id}`, {
-                        headers: {
-                            Authorization: `Bearer ${token}`
-                        }
-                    })
+                    await this.axios.delete(this.$store.state.localhost + `deleteVideo/${id}`)
                     this.$store.commit('deleteVideo', id)
                     this.showToast("Vidéo supprimée", "La vidéo a été supprimée avec succès.")
                 } catch (e) {

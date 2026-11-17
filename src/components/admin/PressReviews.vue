@@ -115,6 +115,15 @@
       </div>
     </div>
 
+    <!-- Erreur de chargement -->
+    <div v-if="loadError" role="alert"
+      class="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center justify-between gap-4">
+      <p class="text-sm text-destructive">{{ loadError }}</p>
+      <button @click="loadData" class="border border-input bg-background hover:bg-accent px-3 py-2 rounded-md text-sm font-medium">
+        Réessayer
+      </button>
+    </div>
+
     <!-- Table -->
     <div class="bg-card rounded-lg shadow overflow-hidden">
       <div class="overflow-x-auto">
@@ -221,7 +230,8 @@
                    </button> -->
                   <button 
                     @click="deleteReview(review.id)"
-                    class="p-2 text-destructive hover:bg-secondary rounded-md"
+                    :disabled="deletingId === review.id"
+                    class="p-2 text-destructive hover:bg-secondary rounded-md disabled:opacity-60 disabled:cursor-not-allowed"
                     title="Supprimer"
                   >
                     <Trash2 class="w-4 h-4" />
@@ -329,6 +339,8 @@ export default {
         search: ''
       },
       isLoading: false,
+      loadError: '',
+      deletingId: null,
       searchTimeout: null
     }
   },
@@ -340,6 +352,7 @@ export default {
   methods: {
     async loadData() {
       this.isLoading = true
+      this.loadError = ''
 
       try {
         const params = {
@@ -355,9 +368,12 @@ export default {
         this.pagination = response.data.pagination
 
       } catch (error) {
-        console.error('Erreur chargement:', error)
         if (error.response?.status === 401) {
           this.$router.push('/admin/login')
+        } else {
+          this.loadError = error.response
+            ? 'Impossible de charger les articles.'
+            : 'Erreur réseau : impossible de charger les articles. Vérifiez votre connexion.'
         }
       } finally {
         this.isLoading = false
@@ -434,12 +450,16 @@ export default {
     },
 
     async deleteReview(id) {
+      if (this.deletingId !== null) return
       if (confirm('Êtes-vous sûr de vouloir supprimer cet article ? Cette action est irréversible.')) {
+        this.deletingId = id
         try {
           await this.$store.dispatch('adminDeletePressReview', id)
           this.loadData()
         } catch (error) {
-          console.error('Erreur suppression:', error)
+          alert(error.response?.data?.message || 'Impossible de supprimer l\'article.')
+        } finally {
+          this.deletingId = null
         }
       }
     },

@@ -1,5 +1,6 @@
 import { createStore } from "vuex";
 import axios from "axios";
+import { stripNonFileUploads } from "@/utils/files";
 
 // --------- HELPER GLOBAL POUR AJOUTER L'URL SUR COVER ---------
 function applyCover(items, baseUrl) {
@@ -966,10 +967,17 @@ export default createStore({
         ? `${state.localhost}team_members/${memberData.id}`
         : `${state.localhost}team_members`;
       
-      const method = isUpdate ? 'put' : 'post';
+      // POST pour création ET mise à jour : Laravel ne parse pas le multipart d'un PUT
+      // (le backend expose l'alias POST team_members/{id}).
+      // photo : seule une nouvelle image (File) est envoyée ; une URL existante est omise.
+      // is_active en 1/0 : "false" en multipart est une chaîne truthy côté PHP.
+      const payload = {
+        ...stripNonFileUploads(memberData, ['photo']),
+        is_active: memberData.is_active ? 1 : 0
+      };
       
       try {
-        const response = await axios[method](url, memberData, {
+        const response = await axios.post(url, payload, {
           headers: { 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
@@ -997,10 +1005,15 @@ export default createStore({
         ? `${state.localhost}partners/${partnerData.id}`
         : `${state.localhost}partners`;
       
-      const method = isUpdate ? 'put' : 'post';
+      // POST pour création ET mise à jour (alias backend POST partners/{id}) :
+      // Laravel ne parse pas le multipart d'un PUT.
+      const payload = {
+        ...stripNonFileUploads(partnerData, ['image']),
+        is_active: partnerData.is_active ? 1 : 0
+      };
       
       try {
-        const response = await axios[method](url, partnerData, {
+        const response = await axios.post(url, payload, {
           headers: { 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'

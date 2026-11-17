@@ -19,19 +19,32 @@
           Retour
         </router-link>
         <button
+          type="button"
           @click="saveDraft"
-          class="border border-input bg-background hover:bg-accent px-4 py-2 rounded-md font-medium"
+          :disabled="isBusy"
+          class="border border-input bg-background hover:bg-accent px-4 py-2 rounded-md font-medium disabled:opacity-60 disabled:cursor-not-allowed"
         >
           Enregistrer comme brouillon
         </button>
         <button
+          type="button"
           @click="saveAndPublish"
-          class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90"
+          :disabled="isBusy"
+          :aria-busy="saving"
+          class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <template v-if="isEditing">Mettre à jour</template>
+          <span v-if="saving" class="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin motion-reduce:animate-none" aria-hidden="true"></span>
+          <template v-if="saving">Envoi en cours...</template>
+          <template v-else-if="isEditing">Mettre à jour</template>
           <template v-else>Publier</template>
         </button>
       </div>
+    </div>
+
+    <!-- Échec d'envoi : la file d'images est conservée, on peut réessayer -->
+    <div v-if="saveError" role="alert"
+      class="mb-6 bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-sm text-destructive">
+      {{ saveError }}
     </div>
 
     <!-- Formulaire -->
@@ -259,46 +272,61 @@
                 </p>
               </div>
 
-              <!-- Preview galerie -->
-              <div v-if="form.gallery_previews && form.gallery_previews.length" class="grid grid-cols-3 gap-2 mt-3">
-                <div 
-                  v-for="(image, index) in form.gallery_previews" 
-                  :key="index"
-                  class="relative aspect-square rounded-lg overflow-hidden group"
-                >
-                  <img 
-                    :src="image" 
-                    :alt="'Galerie ' + (index + 1)"
-                    class="w-full h-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    @click="removeGalleryImage(index)"
-                    class="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive/90 text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              <!-- Images déjà enregistrées sur le serveur -->
+              <div v-if="form.gallery_images && form.gallery_images.length" class="mt-3">
+                <p class="text-xs font-medium text-muted-foreground mb-2">
+                  Images enregistrées ({{ form.gallery_images.length }})
+                </p>
+                <div class="grid grid-cols-3 gap-2">
+                  <div 
+                    v-for="(image, index) in form.gallery_images" 
+                    :key="image"
+                    class="relative aspect-square rounded-lg overflow-hidden group"
                   >
-                    <X class="w-3 h-3" />
-                  </button>
+                    <img 
+                      :src="image" 
+                      :alt="'Galerie ' + (index + 1)"
+                      class="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      @click="removeExistingGalleryImage(index)"
+                      :disabled="saving"
+                      aria-label="Retirer cette image de la galerie"
+                      class="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive/90 text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                    >
+                      <X class="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div v-else-if="form.gallery_images && form.gallery_images.length" class="grid grid-cols-3 gap-2 mt-3">
-                <div 
-                  v-for="(image, index) in form.gallery_images" 
-                  :key="index"
-                  class="relative aspect-square rounded-lg overflow-hidden group"
-                >
-                  <img 
-                    :src="image" 
-                    :alt="'Galerie ' + (index + 1)"
-                    class="w-full h-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    @click="removeExistingGalleryImage(index)"
-                    class="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive/90 text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              <!-- File d'envoi : nouvelles images pas encore confirmées par le serveur -->
+              <div v-if="form.gallery_previews && form.gallery_previews.length" class="mt-3">
+                <p class="text-xs font-medium text-muted-foreground mb-2">
+                  En attente d'envoi ({{ form.gallery_previews.length }})
+                </p>
+                <div class="grid grid-cols-3 gap-2">
+                  <div 
+                    v-for="(image, index) in form.gallery_previews" 
+                    :key="image"
+                    class="relative aspect-square rounded-lg overflow-hidden group"
                   >
-                    <X class="w-3 h-3" />
-                  </button>
+                    <img 
+                      :src="image" 
+                      :alt="'Nouvelle image ' + (index + 1)"
+                      class="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      @click="removeGalleryImage(index)"
+                      :disabled="saving"
+                      aria-label="Retirer cette image de la file d'envoi"
+                      class="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive/90 text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                    >
+                      <X class="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -598,7 +626,17 @@ export default {
         meta_keywords: ''
       },
       newTag: '',
-      loading: false
+      loading: false,
+      saving: false,
+      loadFailed: false,
+      saveError: ''
+    }
+  },
+
+  computed: {
+    // Chargement initial OU envoi en cours : aucune action d'enregistrement possible.
+    isBusy() {
+      return this.loading || this.saving
     }
   },
 
@@ -637,6 +675,7 @@ export default {
         }
       } catch (error) {
         console.error('Erreur chargement:', error)
+        this.loadFailed = true
         if (error.response?.status === 404) {
           this.$router.push('/admin/press-reviews')
         }
@@ -653,12 +692,14 @@ export default {
     handleCoverUpload(event) {
       const file = event.target.files[0]
       if (file) {
+        if (this.form.cover_preview) URL.revokeObjectURL(this.form.cover_preview)
         this.form.cover_image = file
         this.form.cover_preview = URL.createObjectURL(file)
       }
     },
 
     removeCover() {
+      if (this.form.cover_preview) URL.revokeObjectURL(this.form.cover_preview)
       this.form.cover_image = null
       this.form.cover_preview = null
       this.form.cover_url = ''
@@ -695,6 +736,41 @@ export default {
       if (this.form.new_gallery_images && this.form.new_gallery_images[index]) {
         this.form.new_gallery_images.splice(index, 1)
       }
+    },
+
+    // Vide la file d'envoi et libère les URLs objet des aperçus.
+    clearGalleryQueue() {
+      if (this.form.gallery_previews) {
+        this.form.gallery_previews.forEach(url => URL.revokeObjectURL(url))
+      }
+      this.form.gallery_previews = []
+      this.form.new_gallery_images = []
+    },
+
+    // Après un envoi réussi : la galerie du serveur fait foi (existantes + nouvelles,
+    // dédupliquées côté backend). On remplace l'état local et on vide la file.
+    syncGalleryFromServer(saved) {
+      if (!saved || !Array.isArray(saved.gallery_images)) return
+      const origin = this.$store.state.presse
+      this.form.existing_gallery_images = saved.gallery_images
+      this.form.gallery_images = saved.gallery_images.map(p => origin + p)
+      this.clearGalleryQueue()
+    },
+
+    // Message d'échec : la file d'images reste intacte, le backend déduplique par contenu.
+    describeSaveError(error) {
+      const errors = error.response?.data?.errors
+      if (error.response?.status === 422 && errors) {
+        return 'Certains champs sont invalides : ' + Object.values(errors).flat().join(' ')
+      }
+      const queued = this.form.new_gallery_images ? this.form.new_gallery_images.length : 0
+      if (this.isEditing) {
+        const kept = queued
+          ? ` Les ${queued} image(s) en attente sont conservées dans la file d'envoi.`
+          : ''
+        return 'Envoi interrompu, vous pouvez réessayer sans risque de doublon.' + kept
+      }
+      return 'Envoi interrompu. Avant de réessayer, vérifiez dans la liste des articles que celui-ci n\'a pas déjà été créé.'
     },
 
     removeExistingGalleryImage(index) {
@@ -772,12 +848,14 @@ export default {
 
     // Sauvegarde
     async saveDraft() {
+      if (this.isBusy) return
       this.form.status = 'draft'
       this.form.is_published = false
       await this.save()
     },
 
     async saveAndPublish() {
+      if (this.isBusy) return
       this.form.status = 'published'
       this.form.is_published = true
       if (!this.form.published_at) {
@@ -787,7 +865,14 @@ export default {
     },
 
     async save() {
-      this.loading = true
+      // Garde anti double envoi (bouton, touche Entrée, double clic)
+      if (this.saving) return
+      if (this.loadFailed) {
+        this.saveError = 'Le chargement de la revue a échoué : rechargez la page avant d\'enregistrer.'
+        return
+      }
+      this.saving = true
+      this.saveError = ''
 
       try {
         const formData = new FormData()
@@ -835,7 +920,10 @@ export default {
         }
 
         // Images de galerie existantes à conserver
-        if (this.form.existing_gallery_images && this.form.existing_gallery_images.length) {
+        // En édition on l'envoie TOUJOURS (même vide) : sinon retirer la dernière image est ignoré.
+        if (this.isEditing && Array.isArray(this.form.existing_gallery_images)) {
+          formData.append('existing_gallery_images', JSON.stringify(this.form.existing_gallery_images))
+        } else if (this.form.existing_gallery_images && this.form.existing_gallery_images.length) {
           formData.append('existing_gallery_images', JSON.stringify(this.form.existing_gallery_images))
         }
 
@@ -851,23 +939,26 @@ export default {
           formData.append('existing_documents', JSON.stringify(this.form.existing_documents))
         }
 
+        let result
         if (this.isEditing) {
           formData.append('_method', 'PUT')
-          await this.$store.dispatch('adminUpdatePressReview', {
+          result = await this.$store.dispatch('adminUpdatePressReview', {
             id: this.$route.params.id,
             formData
           })
         } else {
-          await this.$store.dispatch('adminCreatePressReview', formData)
+          result = await this.$store.dispatch('adminCreatePressReview', formData)
         }
 
+        // Succès : l'état local est remplacé par la galerie serveur, la file est vidée.
+        this.syncGalleryFromServer(result?.data)
         this.$router.push('/admin/press-reviews')
       } catch (error) {
-        console.error('Erreur sauvegarde:', error)
-        // Afficher une notification d'erreur
-        alert('Une erreur est survenue lors de la sauvegarde')
+        // File d'envoi conservée (new_gallery_images / aperçus) pour un retry sans doublon.
+        this.saveError = this.describeSaveError(error)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       } finally {
-        this.loading = false
+        this.saving = false
       }
     }
   },
@@ -877,9 +968,7 @@ export default {
     if (this.form.cover_preview) {
       URL.revokeObjectURL(this.form.cover_preview)
     }
-    if (this.form.gallery_previews) {
-      this.form.gallery_previews.forEach(url => URL.revokeObjectURL(url))
-    }
+    this.clearGalleryQueue()
   }
 }
 </script>

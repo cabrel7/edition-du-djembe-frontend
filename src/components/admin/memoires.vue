@@ -150,8 +150,9 @@
                         <label class="text-sm font-medium leading-none block mb-1">
                             Titre du mémoire *
                         </label>
-                        <input type="text" v-model="dialogData.title"
+                        <input type="text" v-model="dialogData.title" :aria-invalid="!!fieldErrors.title"
                             class="w-full py-2 px-3 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                        <p v-if="fieldErrors.title" class="text-xs text-destructive mt-1" role="alert">{{ fieldErrors.title }}</p>
                     </div>
 
                     <!-- Auteur et Université -->
@@ -160,15 +161,17 @@
                             <label class="text-sm font-medium leading-none block mb-1">
                                 Auteur *
                             </label>
-                            <input type="text" v-model="dialogData.author"
+                            <input type="text" v-model="dialogData.author" :aria-invalid="!!fieldErrors.author"
                                 class="w-full py-2 px-3 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                            <p v-if="fieldErrors.author" class="text-xs text-destructive mt-1" role="alert">{{ fieldErrors.author }}</p>
                         </div>
                         <div>
                             <label class="text-sm font-medium leading-none block mb-1">
                                 Université *
                             </label>
-                            <input type="text" v-model="dialogData.university"
+                            <input type="text" v-model="dialogData.university" :aria-invalid="!!fieldErrors.university"
                                 class="w-full py-2 px-3 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                            <p v-if="fieldErrors.university" class="text-xs text-destructive mt-1" role="alert">{{ fieldErrors.university }}</p>
                         </div>
                     </div>
 
@@ -178,21 +181,24 @@
                             <label class="text-sm font-medium leading-none block mb-1">
                                 Domaine *
                             </label>
-                            <select v-model="dialogData.domain"
+                            <!-- Valeur liée à l'id numérique du domaine (jamais au libellé) -->
+                            <select v-model="dialogData.domain" :aria-invalid="!!fieldErrors.domain"
                                 class="w-full py-2 px-3 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring appearance-none">
                                 <option value="">Sélectionner</option>
                                 <option v-for="domain in domains" :key="domain.id" :value="domain.id">
                                     {{ domain.name }}
                                 </option>
                             </select>
+                            <p v-if="fieldErrors.domain" class="text-xs text-destructive mt-1" role="alert">{{ fieldErrors.domain }}</p>
                         </div>
                         <div>
                             <label class="text-sm font-medium leading-none block mb-1">
                                 Année *
                             </label>
                             <input type="number" v-model="dialogData.year" :placeholder="currentYear.toString()"
-                                min="2000" :max="currentYear"
+                                min="2000" :max="currentYear" :aria-invalid="!!fieldErrors.year"
                                 class="w-full py-2 px-3 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                            <p v-if="fieldErrors.year" class="text-xs text-destructive mt-1" role="alert">{{ fieldErrors.year }}</p>
                         </div>
                     </div>
 
@@ -242,7 +248,9 @@
                             Résumé *
                         </label>
                         <textarea v-model="dialogData.abstract" rows="6" placeholder="Résumé complet du mémoire..."
+                            :aria-invalid="!!fieldErrors.abstract"
                             class="w-full py-2 px-3 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+                        <p v-if="fieldErrors.abstract" class="text-xs text-destructive mt-1" role="alert">{{ fieldErrors.abstract }}</p>
                     </div>
 
                     <!-- Mots-clés -->
@@ -281,6 +289,7 @@
                                     <input type="file" ref="mainImageInput" @change="handleMainImageUpload"
                                         accept="image/*" class="hidden" />
                                 </div>
+                                <p v-if="fieldErrors.cover" class="text-xs text-destructive mt-1" role="alert">{{ fieldErrors.cover }}</p>
                             </div>
 
 
@@ -303,8 +312,15 @@
                                     <input type="file" ref="maindocumentInput" @change="handledocumentUpload"
                                         accept="application/pdf" class="hidden" />
                                 </div>
+                                <p v-if="fieldErrors.document" class="text-xs text-destructive mt-1" role="alert">{{ fieldErrors.document }}</p>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Erreur globale (validation serveur 422, réseau, 5xx) : le dialogue reste ouvert -->
+                    <div v-if="formError" role="alert"
+                        class="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-sm text-destructive">
+                        {{ formError }}
                     </div>
 
                     <!-- Actions -->
@@ -313,9 +329,9 @@
                             class="border border-input bg-background hover:bg-accent hover:text-accent-foreground px-4 py-2 rounded-md font-medium">
                             Annuler
                         </button>
-                        <button @click="saveMemoir"
-                            class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all">
-                            {{ editingMemoir ? "Enregistrer" : "Ajouter" }}
+                        <button @click="saveMemoir" :disabled="isSaving" :aria-busy="isSaving"
+                            class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                            {{ isSaving ? "Enregistrement..." : (editingMemoir ? "Enregistrer" : "Ajouter") }}
                         </button>
                     </div>
                 </div>
@@ -327,6 +343,10 @@
 <script>
 import { Plus, Search, Edit, Trash2, Download, Upload, X, Eye } from 'lucide-vue-next'
 import { stripNonFileUploads, resolveCoverUrl } from '@/utils/files'
+import { filenameFromDisposition, saveBlob, downloadErrorMessage } from '@/utils/download'
+
+const HTTP_UNPROCESSABLE = 422
+const DEFAULT_DOCUMENT_EXTENSION = 'pdf'
 
 export default {
     name: 'MemoirsAdminPage',
@@ -351,12 +371,14 @@ export default {
             keywordsInput: '',
             image: null,
             editDocName: '',
+            isSaving: false,
+            fieldErrors: {},
+            formError: '',
 
             // Données du formulaire du dialog
             dialogData: {
                 title: '',
                 id: null,
-                slug:'',
                 author: '',
                 image: null,
                 university: '',
@@ -431,8 +453,42 @@ export default {
         },
 
         getDomainName(domainId) {
-            const domain = this.domains.find(d => d.id === domainId)
+            const domain = this.domains.find(d => d.id === Number(domainId))
             return domain ? domain.name : `Domaine #${domainId}`
+        },
+
+        // Normalise une valeur de domaine vers l'id numérique attendu par le backend
+        // (`integer|exists:domaines,id`). Accepte un id (nombre ou chaîne numérique)
+        // ou, par sécurité, un libellé de domaine connu. '' si non résolvable
+        // (le select affiche alors « Sélectionner » au lieu d'envoyer un libellé).
+        toDomainId(value) {
+            if (value === null || value === undefined || value === '') return ''
+            if (/^\d+$/.test(String(value))) return Number(value)
+            const byName = this.domains.find(d => d.name === value)
+            return byName ? byName.id : ''
+        },
+
+        resetErrors() {
+            this.fieldErrors = {}
+            this.formError = ''
+        },
+
+        // Lit une réponse d'erreur Laravel : 422 { message, errors: { champ: [msg] } }.
+        applyServerError(error) {
+            const response = error.response
+            if (response?.status === HTTP_UNPROCESSABLE && response.data?.errors) {
+                const errors = response.data.errors
+                this.fieldErrors = Object.fromEntries(
+                    Object.entries(errors).map(([field, messages]) => [field, [].concat(messages)[0]])
+                )
+                this.formError = 'Le formulaire contient des erreurs : corrigez les champs signalés puis réessayez.'
+                return
+            }
+            if (!response) {
+                this.formError = 'Erreur réseau : le mémoire n\'a peut-être pas été enregistré. Vérifiez votre connexion et réessayez.'
+                return
+            }
+            this.formError = response.data?.message || 'Impossible d\'enregistrer le mémoire.'
         },
 
         openAddDialog() {
@@ -455,6 +511,7 @@ export default {
             }
             this.keywordsInput = ''
             this.editDocName = ''
+            this.resetErrors()
             this.isDialogOpen = true
         },
 
@@ -467,7 +524,7 @@ export default {
                 title: memoir.title,
                 author: memoir.author,
                 university: memoir.university,
-                domain: memoir.domain,
+                domain: this.toDomainId(memoir.domain),
                 year: memoir.year,
                 abstract: memoir.abstract,
                 cover: memoir.cover || '',
@@ -479,6 +536,7 @@ export default {
                 status: memoir.status
             }
             // this.keywordsInput = memoir.keywords ? memoir.keywords.join(', ') : ''
+            this.resetErrors()
             this.isDialogOpen = true
         },
 
@@ -487,25 +545,18 @@ export default {
             this.editingMemoir = null
             this.editDocName = ''
             this.image = null
+            this.resetErrors()
         },
 
         async saveMemoir() {
+            // Garde anti double-clic / retry : une requête à la fois.
+            if (this.isSaving) return
+
             // Validation
             if (!this.dialogData.title.trim()) {
                 alert("Le titre est requis")
                 return
             }
-             if (this.dialogData.title.trim()) {
-                this.dialogData.slug = this.dialogData.title
-                   .toLowerCase()
-    // Autorise lettres (avec accents), chiffres et tirets
-    .replace(/[^a-z0-9àâäéèêëîïôöùûüç-]+/gi, '-')
-    // Regroupe tous les tirets multiples en un seul
-    .replace(/-+/g, '-')
-    // Supprime les tirets au début et à la fin
-    .replace(/^-+|-+$/g, '');
-            }
-
             if (!this.dialogData.author) {
                 alert("L'auteur est requis")
                 return
@@ -539,73 +590,37 @@ export default {
 
             // Ajouter un nouveau mémoire
             // const author = this.authors.find(a => a.id === this.dialogData.author)
+            // Le slug est généré côté serveur : on ne l'envoie pas. `domain` est toujours l'id numérique.
             const payload = stripNonFileUploads({ ...this.dialogData }, ['cover', 'document'])
-            const newMemoir = {
+            const newMemoir = { ...payload, domain: this.toDomainId(this.dialogData.domain) }
 
-                ...payload,
-
-                // keywords: keywords,
-
-            }
-            let token = localStorage.getItem('token')
+            this.isSaving = true
+            this.resetErrors()
             try {
                 const res = await this.axios.post(
                     this.$store.state.localhost + 'saveMemoir',
                     newMemoir,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                            "Content-Type": "multipart/form-data"
-                        }
-                    }
+                    { headers: { "Content-Type": "multipart/form-data" } }
                 )
 
-                if (res.status !== 500 || res.status !== 404 || res.status !== 401) {
-                    let memoir = res.data.memoir
-                      
-                        memoir.cover = this.$store.state.memoircover + '/' + memoir.cover
-                        memoir.domain=this.getDomainName(memoir.domain)
-                    if (this.editingMemoir) {
-                        //  à jour le mémoire existant
-                        Object.assign(this.editingMemoir, {
-                            ...this.dialogData,
-                            // keywords: keywords,
-                            updated_at: new Date().toISOString(),
-
-                        })
-                        // dialogData.cover peut être un File : URL d'affichage pour la liste.
-                        if (this.image) this.editingMemoir.cover = this.image
-
-                        // // Mettre à jour le nom d'auteur si l'auteur a changé
-                        // if (this.dialogData.author) {
-                        //     const author = this.authors.find(a => a.id === this.dialogData.author)
-                        //     this.editingMemoir.author_name = author ? author.name : ` ${this.dialogData.author}`
-                        // }
-
-                        this.showToast("Mémoire mis à jour", "Les modifications ont été enregistrées.")
-                    } else {
-                        
-                        this.memoirs.unshift(memoir)
-                        this.showToast("Mémoire ajouté", "Le mémoire a été ajouté avec succès.")
-                    }
-
-                    this.image = null
-                    this.closeDialog()
-
+                // Objet serveur tel quel : `domain` reste l'id numérique (le libellé est
+                // calculé à l'affichage par getDomainName) ; `cover` est résolu en URL complète.
+                const memoir = { ...res.data.memoir, cover: resolveCoverUrl(res.data.memoir.cover, this.$store.state.memoircover) }
+                if (this.editingMemoir) {
+                    Object.assign(this.editingMemoir, memoir)
+                    this.showToast("Mémoire mis à jour", "Les modifications ont été enregistrées.")
+                } else {
+                    this.memoirs.unshift(memoir)
+                    this.showToast("Mémoire ajouté", "Le mémoire a été ajouté avec succès.")
                 }
 
-
+                this.closeDialog()
             } catch (e) {
-                // tu gères → plus d'erreur console
-                // console.log("yo",e.message)
-                this.showToast(e.message, '')
+                // Le dialogue reste ouvert : erreurs par champ (422) + message global.
+                this.applyServerError(e)
+            } finally {
+                this.isSaving = false
             }
-
-
-
-
-
-
         },
 
         viewMemoir(memoir) {
@@ -613,30 +628,20 @@ export default {
         },
 
         async downloadMemoir(memoir) {
-          try {
+            try {
+                // Route admin authentifiée (cookie) : fonctionne aussi pour un mémoire non publié.
+                const response = await this.axios.get(
+                    `${this.$store.state.localhost}admin/memoirs/${memoir.id}/download`,
+                    { responseType: 'blob', withCredentials: true }
+                )
 
-        const response = await this.axios.get(this.$store.state.localhost + 'downloadmemoir/' + memoir.id, {
-          responseType: 'blob'
-        })
-
-
-        const url = window.URL.createObjectURL(new Blob([response.data]))
-        const link = document.createElement('a')
-        link.href = url
-
-
-        const filename = memoir.title+'.pdf'
-
-        link.setAttribute('download', filename)
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-        window.URL.revokeObjectURL(url)
-
-      } catch (error) {
-        console.error('Erreur lors du téléchargement:', error)
-        alert('Impossible de télécharger le fichier')
-      }           
+                const extension = memoir.extension || DEFAULT_DOCUMENT_EXTENSION
+                const filename = filenameFromDisposition(response.headers['content-disposition'])
+                    || `${memoir.title}.${extension}`
+                saveBlob(new Blob([response.data]), filename)
+            } catch (error) {
+                this.showToast("Téléchargement impossible", await downloadErrorMessage(error))
+            }
         },
 
         async changeStatus(memoir, newStatus) {
@@ -667,17 +672,13 @@ export default {
 
         async deleteMemoir(id) {
             if (confirm("Êtes-vous sûr de vouloir supprimer ce mémoire ?")) {
-                let token = localStorage.getItem('token')
-                await this.axios.delete(this.$store.state.localhost + `deleteMemoir/${id}`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                }).then(() => {
+                try {
+                    await this.axios.delete(this.$store.state.localhost + `deleteMemoir/${id}`)
                     this.$store.commit('deleteMemoir', id)
                     this.showToast("Mémoire supprimé", "Le mémoire a été supprimé avec succès.")
-                })
-
-
+                } catch (e) {
+                    this.showToast("Erreur", e.response?.data?.message || "Impossible de supprimer le mémoire")
+                }
             }
         },
 

@@ -303,6 +303,7 @@
     <TeamMemberDialog 
       v-if="showTeamDialog"
       :member="editingTeamMember"
+      :saving="savingTeam"
       @close="closeDialog"
       @save="saveTeamMember"
     />
@@ -310,6 +311,7 @@
     <PartnerDialog 
       v-if="showPartnerDialog"
       :partner="editingPartner"
+      :saving="savingPartner"
       @close="closeDialog"
       @save="savePartner"
     />
@@ -353,7 +355,9 @@ export default {
       editingTeamMember: null,
       editingPartner: null,
       loadingTeam: false,
-      loadingPartners: false
+      loadingPartners: false,
+      savingTeam: false,
+      savingPartner: false
     }
   },
   
@@ -391,14 +395,26 @@ export default {
     return this.$store.dispatch('fetchTeamMembers')
   },
 
+  // Message lisible depuis une erreur axios (422 Laravel : { errors: { champ: [msg] } })
+  describeSaveError(error, fallback) {
+    const errors = error.response?.data?.errors
+    if (errors) return `${fallback} : ${Object.values(errors).flat().join(' ')}`
+    if (!error.response) return `${fallback} : erreur réseau, vérifiez votre connexion et réessayez.`
+    return error.response.data?.message ? `${fallback} : ${error.response.data.message}` : fallback
+  },
+
   async saveTeamMember(memberData) {
+    // Garde anti double-clic / retry : une requête à la fois.
+    if (this.savingTeam) return
+    this.savingTeam = true
     try {
       await this.$store.dispatch('saveTeamMember', memberData)
       this.closeDialog()
       await this.fetchTeamMembers()
     } catch (error) {
-      console.error(error)
-      alert('Erreur lors de la sauvegarde du membre')
+      alert(this.describeSaveError(error, 'Erreur lors de la sauvegarde du membre'))
+    } finally {
+      this.savingTeam = false
     }
   },
 
@@ -423,13 +439,17 @@ export default {
   },
 
   async savePartner(partnerData) {
+    // Garde anti double-clic / retry : une requête à la fois.
+    if (this.savingPartner) return
+    this.savingPartner = true
     try {
       await this.$store.dispatch('savePartner', partnerData)
       this.closeDialog()
       await this.fetchPartners()
     } catch (error) {
-      console.error(error)
-      alert('Erreur lors de la sauvegarde du partenaire')
+      alert(this.describeSaveError(error, 'Erreur lors de la sauvegarde du partenaire'))
+    } finally {
+      this.savingPartner = false
     }
   },
 

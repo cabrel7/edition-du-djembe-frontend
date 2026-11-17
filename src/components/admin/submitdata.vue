@@ -454,6 +454,7 @@ import {
   FileText, CheckCircle, XCircle, BookOpen, FileCheck, Newspaper, Mail 
 } from 'lucide-vue-next'
 import axios from 'axios'
+import { filenameFromDisposition, saveBlob, downloadErrorMessage } from '@/utils/download'
 
 export default {
   name: 'AdminSubmissionsPage',
@@ -635,33 +636,17 @@ export default {
     
     async downloadFile(submissionId) {
       try {
-        const token = localStorage.getItem('token')
+        // Route admin authentifiée (cookie httpOnly) : jamais d'URL publique.
         const response = await axios.get(
           `${this.$store.state.localhost}admin/submissions/${submissionId}/download`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            responseType: 'blob'
-          }
+          { responseType: 'blob', withCredentials: true }
         )
-        
-        // Créer un lien de téléchargement
-        const url = window.URL.createObjectURL(new Blob([response.data]))
-        const link = document.createElement('a')
-        link.href = url
-        
-        // Récupérer le nom du fichier depuis l'URL
-        const filename = response.headers['content-disposition']
-          ?.split('filename=')[1]
-          ?.replace(/"/g, '') || 'document.pdf'
-        
-        link.setAttribute('download', filename)
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-        
+
+        const filename = filenameFromDisposition(response.headers['content-disposition'])
+          || `soumission-${submissionId}.pdf`
+        saveBlob(new Blob([response.data]), filename)
       } catch (error) {
-        console.error('Erreur lors du téléchargement:', error)
-        alert('Impossible de télécharger le fichier')
+        alert(await downloadErrorMessage(error))
       }
     },
     

@@ -121,9 +121,11 @@
               </button>
               <button 
                 @click="saveCategory"
-                class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all"
+                :disabled="isSaving"
+                :aria-busy="isSaving"
+                class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {{ editingCategory ? "Enregistrer" : "Créer" }}
+                {{ isSaving ? "Enregistrement..." : (editingCategory ? "Enregistrer" : "Créer") }}
               </button>
             </div>
           </div>
@@ -150,6 +152,7 @@ export default {
     return {
       isDialogOpen: false,
       editingCategory: null,
+      isSaving: false,
       
       // Données du formulaire du dialog
       dialogData: {
@@ -184,7 +187,6 @@ export default {
         name: category.name,
         description: category.description || ''
       }
-      console.log(this.dialogData)
       this.isDialogOpen = true
     },
     
@@ -196,64 +198,48 @@ export default {
     
     // Sauvegarder la catégorie
     async saveCategory() {
+      // Garde anti double-clic / retry : une requête à la fois.
+      if (this.isSaving) return
       if (!this.dialogData.name.trim()) {
         alert("Le nom de la catégorie est requis")
         return
       }
-      
-      
-        const newCategory = this.dialogData
-          let token = localStorage.getItem('token')
-            try {
-                const res = await this.axios.post(
-                    this.$store.state.localhost + 'saveCategorie',
-                    newCategory,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
 
-                        }
-                    }
-                )
+      this.isSaving = true
+      try {
+        const res = await this.axios.post(
+          this.$store.state.localhost + 'saveCategorie',
+          { ...this.dialogData }
+        )
 
-                if (res.status !== 500 || res.status !== 404 || res.status !== 401) {
-                  if (this.editingCategory) {
-        // Mettre à jour la catégorie existante
-        Object.assign(this.editingCategory, this.dialogData)
-        this.showToast("Catégorie mise à jour", "Les modifications ont été enregistrées avec succès.")
-      } else{
-        this.categories.unshift(newCategory)
-        this.showToast("Catégorie créée", "La catégorie a été créée avec succès.")
-      
+        // Objet renvoyé par le serveur (avec id) : évite le doublon à la
+        // modification d'une catégorie tout juste créée.
+        const saved = res.data.categorie
+        if (this.editingCategory) {
+          Object.assign(this.editingCategory, saved)
+          this.showToast("Catégorie mise à jour", "Les modifications ont été enregistrées avec succès.")
+        } else {
+          this.categories.unshift(saved)
+          this.showToast("Catégorie créée", "La catégorie a été créée avec succès.")
+        }
+        this.closeDialog()
+      } catch (e) {
+        this.showToast("Erreur", e.response?.data?.message || e.message || "Impossible d'enregistrer la catégorie")
+      } finally {
+        this.isSaving = false
       }
-                 
-      
-      this.closeDialog()
-                  
-                }
-                console.log(res)
-
-            } catch (e) {
-                // tu gères → plus d'erreur console
-                // console.log("yo",e.message)
-                this.showToast(e.message, '')
-            }
-        
     },
     
     // Supprimer une catégorie
     async deleteCategory(id) {
       if (confirm("Êtes-vous sûr de vouloir supprimer cette catégorie ?")) {
-        
-        
-                   let token =localStorage.getItem('token')
-                await this.axios.delete(this.$store.state.localhost+`deleteCategorie/${id}`, {headers:{
-                    Authorization: `Bearer ${token}`
-                }}).then(()=>{
-                    this.$store.commit('deleteCategorie', id)
-                  this.showToast("Catégorie supprimée", "La catégorie a été supprimée avec succès.")
-                })
-        
+        try {
+          await this.axios.delete(this.$store.state.localhost + `deleteCategorie/${id}`)
+          this.$store.commit('deleteCategorie', id)
+          this.showToast("Catégorie supprimée", "La catégorie a été supprimée avec succès.")
+        } catch (e) {
+          this.showToast("Erreur", e.response?.data?.message || "Impossible de supprimer la catégorie")
+        }
       }
     },
     
@@ -266,10 +252,6 @@ export default {
             this.$emit('showtoast',message)
             
         }
-  },
-  
-  mounted() {
-    console.log('Categories admin page mounted')
   }
 }
 </script>
