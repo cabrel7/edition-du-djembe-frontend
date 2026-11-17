@@ -12,12 +12,24 @@
       <div class="flex gap-2">
         <button 
           @click="refreshSubmissions"
-          class="border border-input bg-background hover:bg-accent px-4 py-2 rounded-md font-medium inline-flex items-center gap-2"
+          :disabled="isLoading"
+          :aria-busy="isLoading"
+          class="border border-input bg-background hover:bg-accent px-4 py-2 rounded-md font-medium inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <RefreshCw class="w-4 h-4" />
           Actualiser
         </button>
       </div>
+    </div>
+
+    <!-- Erreur de chargement -->
+    <div v-if="loadError" role="alert"
+      class="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center justify-between gap-4">
+      <p class="text-sm text-destructive">{{ loadError }}</p>
+      <button @click="fetchSubmissions" :disabled="isLoading" :aria-busy="isLoading"
+        class="border border-input bg-background hover:bg-accent px-3 py-2 rounded-md text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed">
+        Réessayer
+      </button>
     </div>
 
     <!-- Statistiques rapides -->
@@ -118,7 +130,10 @@
                 'border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer',
                 getStatusBgColor(submission.status)
               ]"
+              tabindex="0"
               @click="viewSubmission(submission)"
+              @keydown.enter.self="viewSubmission(submission)"
+              @keydown.space.self.prevent="viewSubmission(submission)"
             >
               <td class="py-3 px-4">
                 <div class="flex items-center gap-3">
@@ -165,8 +180,10 @@
                 <div class="flex items-center justify-end gap-1" @click.stop>
                   <button 
                     @click="downloadFile(submission.id)"
-                    class="p-2 text-primary hover:bg-secondary rounded-md"
-                    title="Télécharger"
+                    :disabled="downloadingId !== null"
+                    :aria-busy="downloadingId === submission.id"
+                    class="p-2 text-primary hover:bg-secondary rounded-md disabled:opacity-60 disabled:cursor-not-allowed"
+                    :title="downloadingId === submission.id ? 'Téléchargement...' : 'Télécharger'"
                   >
                     <Download class="w-4 h-4" />
                   </button>
@@ -225,16 +242,25 @@
   <!-- Modal de visualisation -->
   <div 
     v-if="isModalOpen && selectedSubmission"
+    role="dialog"
+    aria-modal="true"
+    :aria-label="`Soumission n°${selectedSubmission.id}`"
     class="fixed inset-0 animate-fade-in w-full h-screen z-50 bg-foreground/80 flex items-center justify-center p-4"
+    :aria-busy="isModalLocked"
     @click="closeModal"
   >
     <div 
+      ref="modalPanel"
       class="relative bg-card rounded-lg overflow-hidden max-w-4xl w-full max-h-[90vh] overflow-y-auto"
       @click.stop
     >
       <button
+        ref="modalCloseButton"
+        type="button"
+        aria-label="Fermer"
+        :disabled="isModalLocked"
         @click="closeModal"
-        class="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
+        class="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <X class="w-4 h-4" />
       </button>
@@ -307,9 +333,13 @@
                 </div>
                 <button 
                   @click="downloadFile(selectedSubmission.id)"
-                  class="p-2 text-primary hover:bg-secondary rounded-md"
+                  :disabled="downloadingId !== null"
+                  :aria-busy="downloadingId === selectedSubmission.id"
+                  class="p-2 text-primary hover:bg-secondary rounded-md inline-flex items-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  title="Télécharger"
                 >
                   <Download class="w-5 h-5" />
+                  <span v-if="downloadingId === selectedSubmission.id">Téléchargement...</span>
                 </button>
               </div>
             </div>
@@ -378,16 +408,20 @@
             
             <button 
               @click="updateStatus"
-              class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90"
+              :disabled="isSavingStatus"
+              :aria-busy="isSavingStatus"
+              class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               Mettre à jour
             </button>
             
             <button 
               @click="deleteSubmission"
-              class="border border-destructive text-destructive px-4 py-2 rounded-md font-medium hover:bg-destructive/10"
+              :disabled="isDeleting"
+              :aria-busy="isDeleting"
+              class="border border-destructive text-destructive px-4 py-2 rounded-md font-medium hover:bg-destructive/10 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Supprimer
+              {{ isDeleting ? 'Suppression...' : 'Supprimer' }}
             </button>
 
             <button 
@@ -405,11 +439,18 @@
   </div>
 
   <!-- Email Dialog -->
-  <div v-if="isEmailDialogOpen" class="fixed inset-0 z-[60] bg-foreground/80 flex items-center justify-center p-4">
-    <div class="bg-card rounded-lg overflow-hidden max-w-lg w-full">
+  <div
+    v-if="isEmailDialogOpen"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Envoyer un email"
+    :aria-busy="isSendingEmail"
+    class="fixed inset-0 z-[60] bg-foreground/80 flex items-center justify-center p-4"
+  >
+    <div ref="emailPanel" class="bg-card rounded-lg overflow-hidden max-w-lg w-full">
       <div class="flex items-center justify-between px-6 py-4 border-b border-border">
         <h2 class="text-lg font-semibold text-foreground">Envoyer un email</h2>
-        <button @click="closeEmailDialog" class="p-1 hover:bg-secondary rounded-md">
+        <button type="button" aria-label="Fermer" @click="closeEmailDialog" class="p-1 hover:bg-secondary rounded-md">
           <X class="w-4 h-4" />
         </button>
       </div>
@@ -451,9 +492,13 @@
 <script>
 import { 
   User, Download, RefreshCw, Inbox, X, 
-  FileText, CheckCircle, XCircle, BookOpen, FileCheck, Newspaper, Mail 
+  FileText, CheckCircle, XCircle, Mail 
 } from 'lucide-vue-next'
 import axios from 'axios'
+import { isAlreadyDeleted } from '@/utils/deletion'
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 import { filenameFromDisposition, saveBlob, downloadErrorMessage } from '@/utils/download'
 
 export default {
@@ -468,9 +513,6 @@ export default {
     FileText,
     CheckCircle,
     XCircle,
-    BookOpen,
-    FileCheck,
-    Newspaper,
     Mail
   },
   
@@ -497,7 +539,13 @@ export default {
       },
       selectedSubmission: null,
       isModalOpen: false,
+      isDeleting: false,
+      isSavingStatus: false,
+      lastFocusedElement: null,
+      emailOriginElement: null,
       isLoading: false,
+      loadError: '',
+      downloadingId: null,
       newStatus: 'pending',
       adminNotes: '',
       searchTimeout: null,
@@ -511,11 +559,64 @@ export default {
   },
   
   mounted() {
+    window.addEventListener('keydown', this.onWindowKeydown)
     this.fetchSubmissions()
     // this.fetchStatistics()
   },
   
+  beforeUnmount() {
+    window.removeEventListener('keydown', this.onWindowKeydown)
+  },
+  
+  computed: {
+    // Écriture en cours : la modale ne peut pas être fermée.
+    isModalLocked() {
+      return this.isSendingEmail || this.isSavingStatus || this.isDeleting
+    }
+  },
+  
   methods: {
+    // Échap : ferme le dialogue d'email, sinon la modale ; jamais pendant un envoi,
+    // une sauvegarde ou une suppression en cours.
+    onWindowKeydown(event) {
+      if (event.key === 'Tab') {
+        this.trapFocus(event)
+        return
+      }
+      if (event.key !== 'Escape') return
+      if (this.isModalLocked) return
+      if (this.isEmailDialogOpen) {
+        this.closeEmailDialog()
+      } else if (this.isModalOpen) {
+        this.closeModal()
+      }
+    },
+
+    // Focus trap minimal : Tab / Maj+Tab bouclent dans la modale ouverte (le dialogue
+    // d'email, au-dessus, prime sur la modale de la soumission).
+    trapFocus(event) {
+      const panel = this.isEmailDialogOpen
+        ? this.$refs.emailPanel
+        : (this.isModalOpen ? this.$refs.modalPanel : null)
+      if (!panel) return
+      const focusables = Array.from(panel.querySelectorAll(FOCUSABLE_SELECTOR))
+      if (focusables.length === 0) {
+        event.preventDefault()
+        return
+      }
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      const active = document.activeElement
+      const isOutside = !panel.contains(active)
+      if (event.shiftKey && (active === first || isOutside)) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && (active === last || isOutside)) {
+        event.preventDefault()
+        first.focus()
+      }
+    },
+
     // Formattage des dates
     formatDate(dateString) {
       return new Date(dateString).toLocaleDateString('fr-FR')
@@ -586,6 +687,7 @@ export default {
     // API calls
     async fetchSubmissions() {
       this.isLoading = true
+      this.loadError = ''
       
       try {
         const token = localStorage.getItem('token')
@@ -605,12 +707,14 @@ export default {
         this.submissions = response.data.data.submissions
         this.pagination = response.data.data.pagination
         this.stats = response.data.data.stats
-        console.log(response)
         
       } catch (error) {
         console.error('Erreur lors du chargement des soumissions:', error)
-        if (error.response?.status === 401) {
-          this.$router.push('/admin/login')
+        // 401 : géré par l'intercepteur global (main.js), qui conserve redirectAfterLogin.
+        if (error.response?.status !== 401) {
+          this.loadError = error.response
+            ? 'Impossible de charger les soumissions.'
+            : 'Erreur réseau : impossible de charger les soumissions. Vérifiez votre connexion.'
         }
       } finally {
         this.isLoading = false
@@ -635,6 +739,8 @@ export default {
     },
     
     async downloadFile(submissionId) {
+      if (this.downloadingId !== null) return
+      this.downloadingId = submissionId
       try {
         // Route admin authentifiée (cookie httpOnly) : jamais d'URL publique.
         const response = await axios.get(
@@ -647,18 +753,26 @@ export default {
         saveBlob(new Blob([response.data]), filename)
       } catch (error) {
         alert(await downloadErrorMessage(error))
+      } finally {
+        this.downloadingId = null
       }
     },
     
     async updateStatus() {
+      if (this.isSavingStatus || !this.selectedSubmission) return
+      this.isSavingStatus = true
+      // Valeurs capturées au départ : la sélection ne doit jamais être relue après l'await.
+      const submissionId = this.selectedSubmission.id
+      const status = this.newStatus
+      const adminNotes = this.adminNotes
       try {
         const token = localStorage.getItem('token')
         
-        const response = await axios.put(
-          `${this.$store.state.localhost}admin/submissions/${this.selectedSubmission.id}/status`,
+        await axios.put(
+          `${this.$store.state.localhost}admin/submissions/${submissionId}/status`,
           {
-            status: this.newStatus,
-            admin_notes: this.adminNotes
+            status,
+            admin_notes: adminNotes
           },
           {
             headers: { Authorization: `Bearer ${token}` }
@@ -666,64 +780,98 @@ export default {
         )
         
         // Mettre à jour localement
-        const index = this.submissions.findIndex(s => s.id === this.selectedSubmission.id)
+        const index = this.submissions.findIndex(s => s.id === submissionId)
         if (index !== -1) {
-          this.submissions[index].status = this.newStatus
-          this.submissions[index].admin_notes = this.adminNotes
+          this.submissions[index].status = status
+          this.submissions[index].admin_notes = adminNotes
         }
         
-        this.selectedSubmission.status = this.newStatus
-        this.selectedSubmission.admin_notes = this.adminNotes
+        if (this.selectedSubmission && this.selectedSubmission.id === submissionId) {
+          this.selectedSubmission.status = status
+          this.selectedSubmission.admin_notes = adminNotes
+        }
         
         alert('Statut mis à jour avec succès')
         
       } catch (error) {
         console.error('Erreur lors de la mise à jour du statut:', error)
         alert('Impossible de mettre à jour le statut')
+      } finally {
+        this.isSavingStatus = false
       }
     },
     
     async deleteSubmission() {
+      if (this.isDeleting) return
       if (!confirm('Êtes-vous sûr de vouloir supprimer cette soumission ? Cette action est irréversible.')) {
         return
       }
       
+      this.isDeleting = true
+      const submissionId = this.selectedSubmission.id
       try {
         const token = localStorage.getItem('token')
         
         await axios.delete(
-          `${this.$store.state.localhost}admin/submissions/${this.selectedSubmission.id}`,
+          `${this.$store.state.localhost}admin/submissions/${submissionId}`,
           {
             headers: { Authorization: `Bearer ${token}` }
           }
         )
         
-        // Supprimer localement
-        this.submissions = this.submissions.filter(s => s.id !== this.selectedSubmission.id)
-        this.closeModal()
-        this.fetchStatistics()
-        
+        this.removeSubmissionLocally(submissionId)
         alert('Soumission supprimée avec succès')
         
       } catch (error) {
-        console.error('Erreur lors de la suppression:', error)
-        alert('Impossible de supprimer la soumission')
+        if (isAlreadyDeleted(error)) {
+          // Déjà supprimée (double clic, autre onglet) : on retire la ligne, message neutre.
+          this.removeSubmissionLocally(submissionId)
+          alert('Cette soumission avait déjà été supprimée.')
+        } else {
+          console.error('Erreur lors de la suppression:', error)
+          alert('Impossible de supprimer la soumission')
+        }
+      } finally {
+        this.isDeleting = false
       }
+    },
+
+    removeSubmissionLocally(submissionId) {
+      // La suppression est terminée : lever le verrou avant de fermer la modale.
+      this.isDeleting = false
+      this.submissions = this.submissions.filter(s => s.id !== submissionId)
+      this.closeModal()
+      this.fetchStatistics()
     },
     
     // Email
     openEmailDialog() {
+      this.emailOriginElement = document.activeElement
       this.emailForm = {
         subject: `Votre soumission « ${this.selectedSubmission.title} » | Les Éditions du Djembé`,
         message: ''
       }
       this.isEmailDialogOpen = true
+      this.$nextTick(() => {
+        const first = this.$refs.emailPanel?.querySelector(FOCUSABLE_SELECTOR)
+        if (first) first.focus()
+      })
     },
     
     closeEmailDialog() {
       if (this.isSendingEmail) return
+      this.hideEmailDialog()
+    },
+
+    // Ferme le dialogue (sans garde d'envoi) et rend le focus au bouton d'origine.
+    hideEmailDialog() {
       this.isEmailDialogOpen = false
       this.emailForm = { subject: '', message: '' }
+      const origin = this.emailOriginElement
+      this.emailOriginElement = null
+      this.$nextTick(() => {
+        if (origin && document.contains(origin)) origin.focus()
+      })
     },
     
     async sendEmail() {
@@ -747,8 +895,7 @@ export default {
           }
         )
         
-        this.isEmailDialogOpen = false
-        this.emailForm = { subject: '', message: '' }
+        this.hideEmailDialog()
         alert(`Email envoyé à ${this.selectedSubmission.email}`)
         
       } catch (error) {
@@ -761,17 +908,28 @@ export default {
     
     // Modal
     viewSubmission(submission) {
+      // Élément à refocaliser à la fermeture (ligne ou bouton d'origine).
+      this.lastFocusedElement = document.activeElement
       this.selectedSubmission = submission
       this.newStatus = submission.status
       this.adminNotes = submission.admin_notes || ''
       this.isModalOpen = true
+      this.$nextTick(() => this.$refs.modalCloseButton?.focus())
     },
     
     closeModal() {
+      // Garde dans la méthode (croix, clic sur le fond, Échap, suppression) : jamais
+      // de fermeture pendant une écriture, pour ne pas perdre la soumission ciblée.
+      if (this.isModalLocked) return
       this.isModalOpen = false
       this.selectedSubmission = null
       this.newStatus = 'pending'
       this.adminNotes = ''
+      const origin = this.lastFocusedElement
+      this.lastFocusedElement = null
+      this.$nextTick(() => {
+        if (origin && document.contains(origin)) origin.focus()
+      })
     },
     
     // Utilitaires

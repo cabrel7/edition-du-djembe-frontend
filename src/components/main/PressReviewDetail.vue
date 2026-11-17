@@ -501,7 +501,7 @@ export default {
     },
 
     getYouTubeEmbedUrl(url) {
-      const videoId = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)
+      const videoId = url.match(/(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/)
       return videoId ? `https://www.youtube.com/embed/${videoId[1]}` : url
     },
 

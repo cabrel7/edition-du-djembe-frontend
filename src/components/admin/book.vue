@@ -105,7 +105,10 @@
                                     <span v-else>✗</span>
                                 </button>
                                 <button @click="deleteBook(book.id)"
-                                    class="p-2 text-destructive hover:bg-secondary rounded-md" title="Supprimer">
+                                    :disabled="deletingIds.includes(book.id)"
+                                    :aria-busy="deletingIds.includes(book.id)"
+                                    :title="deletingIds.includes(book.id) ? 'Suppression...' : 'Supprimer'"
+                                    class="p-2 text-destructive hover:bg-secondary rounded-md disabled:opacity-60 disabled:cursor-not-allowed">
                                     <Trash2 class="w-4 h-4" />
                                 </button>
                             </div>
@@ -366,6 +369,8 @@
 import { Plus, Search, Edit, Trash2,FileText, Eye, Upload, X } from 'lucide-vue-next'
 import { formatPrice } from '@/utils/price'
 import { stripNonFileUploads, resolveCoverUrl } from '@/utils/files'
+import { newIdempotencyKey, idempotencyHeaders, describeIdempotencyFailure } from '@/utils/idempotency'
+import { isAlreadyDeleted, ALREADY_DELETED_TOAST } from '@/utils/deletion'
 
 export default {
     name: 'BooksAdminPage',
@@ -383,11 +388,14 @@ export default {
 
     data() {
         return {
+            deletingIds: [],
             searchQuery: '',
             filterStatus: 'all',
             isDialogOpen: false,
             editingBook: null,
             isSaving: false,
+            // Clé d'idempotence du formulaire de création en cours (null en modification).
+            idempotencyKey: null,
             image: null,
             editDocName: '',
             editExtraitName: '',
@@ -500,6 +508,7 @@ export default {
         // Ouvrir le dialog d'ajout
         openAddDialog() {
             this.editingBook = null
+            this.idempotencyKey = newIdempotencyKey()
             this.dialogData = {
                 title: '',
                 extraitdocument:null,
@@ -618,7 +627,12 @@ export default {
                 const res = await this.axios.post(
                     this.$store.state.localhost + 'saveBook',
                     payload,
-                    { headers: { "Content-Type": "multipart/form-data" } }
+                    {
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                            ...idempotencyHeaders(this.editingBook ? null : this.idempotencyKey)
+                        }
+                    }
                 )
 
                 // Objet serveur (avec id) : jamais la copie du formulaire.
@@ -631,11 +645,18 @@ export default {
                     this.showToast("Livre mis à jour", "Les modifications ont été enregistrées.")
                 } else {
                     this.books.unshift(book)
+                    this.idempotencyKey = newIdempotencyKey()
                     this.showToast("Livre ajouté", "Le livre a été ajouté avec succès.")
                 }
                 // Fermeture uniquement après succès : en cas d'erreur le dialogue reste ouvert.
                 this.closeDialog()
             } catch (e) {
+                const idem = this.editingBook ? null : describeIdempotencyFailure(e)
+                if (idem) {
+                    if (idem.renewKey) this.idempotencyKey = newIdempotencyKey()
+                    this.showToast("Erreur", idem.message)
+                    return
+                }
                 const errors = e.response?.data?.errors
                 const detail = errors ? Object.values(errors).flat().join(' ') : ''
                 this.showToast("Erreur", detail || e.response?.data?.message || e.message || "Impossible d'enregistrer le livre")
@@ -671,14 +692,22 @@ export default {
 
         // Supprimer un livre
       async  deleteBook(id) {
-            if (confirm("Êtes-vous sûr de vouloir supprimer ce livre ?")) {
-                try {
-                    await this.axios.delete(this.$store.state.localhost + `deleteBook/${id}`)
+            if (this.deletingIds.includes(id)) return
+            if (!confirm("Êtes-vous sûr de vouloir supprimer ce livre ?")) return
+            this.deletingIds.push(id)
+            try {
+                await this.axios.delete(this.$store.state.localhost + `deleteBook/${id}`)
+                this.$store.commit('deleteBook', id)
+                this.showToast("Livre supprimé", "Le livre a été supprimé avec succès.")
+            } catch (e) {
+                if (isAlreadyDeleted(e)) {
                     this.$store.commit('deleteBook', id)
-                    this.showToast("Livre supprimé", "Le livre a été supprimé avec succès.")
-                } catch (e) {
+                    this.showToast(ALREADY_DELETED_TOAST.title, ALREADY_DELETED_TOAST.description)
+                } else {
                     this.showToast("Erreur", e.response?.data?.message || "Impossible de supprimer le livre")
                 }
+            } finally {
+                this.deletingIds = this.deletingIds.filter(i => i !== id)
             }
         },
 

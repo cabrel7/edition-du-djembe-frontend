@@ -40,7 +40,7 @@ export default {
   watch: {
     // Surveiller les changements de route
     '$route': {
-      handler(to, from) {
+      handler(to) {
         // Petite attente pour laisser le composant enfant se monter
         this.$nextTick(() => {
           this.updateSeo(to)

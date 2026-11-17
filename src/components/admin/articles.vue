@@ -184,8 +184,10 @@
                                 </button> -->
                 <button
                   @click="deleteArticle(article.id)"
-                  class="p-2 text-destructive hover:bg-secondary rounded-md"
-                  title="Supprimer"
+                  :disabled="deletingIds.includes(article.id)"
+                  :aria-busy="deletingIds.includes(article.id)"
+                  class="p-2 text-destructive hover:bg-secondary rounded-md disabled:opacity-60 disabled:cursor-not-allowed"
+                  :title="deletingIds.includes(article.id) ? 'Suppression...' : 'Supprimer'"
                 >
                   <Trash2 class="w-4 h-4" />
                 </button>
@@ -421,11 +423,11 @@ import {
   Edit,
   Trash2,
   Eye,
-  Upload,
   X,
-  Star,
 } from "lucide-vue-next";
 import { stripNonFileUploads, resolveCoverUrl } from "@/utils/files";
+import { newIdempotencyKey, idempotencyHeaders, describeIdempotencyFailure } from "@/utils/idempotency";
+import { isAlreadyDeleted, ALREADY_DELETED_TOAST } from '@/utils/deletion';
 
 export default {
   name: "ArticlesAdminPage",
@@ -437,13 +439,12 @@ export default {
     Edit,
     Trash2,
     Eye,
-    Upload,
     X,
-    Star,
   },
 
   data() {
     return {
+         deletingIds: [],
          editorOptions: {
         placeholder: "Écris ton article ici...",
         theme: "snow"
@@ -464,6 +465,8 @@ export default {
       ],
       image: null,
       isSaving: false,
+      // Clé d'idempotence du formulaire de création en cours (null en modification).
+      idempotencyKey: null,
       // Données du formulaire du dialog (le slug est généré côté serveur)
       dialogData: {
         title: "",
@@ -545,6 +548,7 @@ export default {
 
     openAddDialog() {
       this.editingArticle = null;
+      this.idempotencyKey = newIdempotencyKey();
       this.image = null;
       this.dialogData = {
         title: "",
@@ -619,10 +623,12 @@ export default {
 
       // Convertir les tags
       const tags = this.tagsInput
-        ? this.tagsInput
-            .split(",")
-            .map((tag) => tag.trim())
-            .filter((tag) => tag)
+        ? [...new Set(
+            this.tagsInput
+              .split(",")
+              .map((tag) => tag.trim())
+              .filter((tag) => tag)
+          )]
         : [];
 
       // Ajouter un nouvel article
@@ -641,7 +647,12 @@ export default {
         const res = await this.axios.post(
           this.$store.state.localhost + "saveArticle",
           newArticle,
-          { headers: { "Content-Type": "multipart/form-data" } }
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+              ...idempotencyHeaders(this.editingArticle ? null : this.idempotencyKey),
+            },
+          }
         );
 
         // Objet serveur (avec id et slug réel) : jamais la copie du formulaire.
@@ -660,10 +671,17 @@ export default {
           );
         } else {
           this.articles.unshift(article);
+          this.idempotencyKey = newIdempotencyKey();
           this.showToast("Article créé", "L'article a été créé avec succès.");
         }
         this.closeDialog();
       } catch (e) {
+        const idem = this.editingArticle ? null : describeIdempotencyFailure(e);
+        if (idem) {
+          if (idem.renewKey) this.idempotencyKey = newIdempotencyKey();
+          this.showToast("Erreur", idem.message);
+          return;
+        }
         const errors = e.response?.data?.errors;
         const detail = errors ? Object.values(errors).flat().join(" ") : "";
         this.showToast(
@@ -702,22 +720,30 @@ export default {
     },
 
     async deleteArticle(id) {
-      if (confirm("Êtes-vous sûr de vouloir supprimer cet article ?")) {
-        try {
-          await this.axios.delete(
-            this.$store.state.localhost + `deleteArticle/${id}`
-          );
+      if (this.deletingIds.includes(id)) return;
+      if (!confirm("Êtes-vous sûr de vouloir supprimer cet article ?")) return;
+      this.deletingIds.push(id);
+      try {
+        await this.axios.delete(
+          this.$store.state.localhost + `deleteArticle/${id}`
+        );
+        this.$store.commit("deleteArticle", id);
+        this.showToast(
+          "Article supprimé",
+          "L'article a été supprimé avec succès."
+        );
+      } catch (e) {
+        if (isAlreadyDeleted(e)) {
           this.$store.commit("deleteArticle", id);
-          this.showToast(
-            "Article supprimé",
-            "L'article a été supprimé avec succès."
-          );
-        } catch (e) {
+          this.showToast(ALREADY_DELETED_TOAST.title, ALREADY_DELETED_TOAST.description);
+        } else {
           this.showToast(
             "Erreur",
             e.response?.data?.message || "Impossible de supprimer l'article"
           );
         }
+      } finally {
+        this.deletingIds = this.deletingIds.filter((i) => i !== id);
       }
     },
 

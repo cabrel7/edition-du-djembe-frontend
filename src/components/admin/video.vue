@@ -114,7 +114,10 @@
                                 </button>
                                
                                 <button @click="deleteVideo(video.id)"
-                                    class="p-2 text-destructive hover:bg-secondary rounded-md" title="Supprimer">
+                                    :disabled="deletingIds.includes(video.id)"
+                                    :aria-busy="deletingIds.includes(video.id)"
+                                    :title="deletingIds.includes(video.id) ? 'Suppression...' : 'Supprimer'"
+                                    class="p-2 text-destructive hover:bg-secondary rounded-md disabled:opacity-60 disabled:cursor-not-allowed">
                                     <Trash2 class="w-4 h-4" />
                                 </button>
                             </div>
@@ -238,8 +241,10 @@
 
 <script>
     
-import { Plus, Search, Edit, Trash2, Play, Upload, X, Eye } from 'lucide-vue-next'
+import { Plus, Search, Edit, Trash2, Play, Upload, X } from 'lucide-vue-next'
 import { stripNonFileUploads, resolveImageUrl } from '@/utils/files'
+import { newIdempotencyKey, idempotencyHeaders, describeIdempotencyFailure } from '@/utils/idempotency'
+import { isAlreadyDeleted, ALREADY_DELETED_TOAST } from '@/utils/deletion'
 
 export default {
     name: 'VideosAdminPage',
@@ -251,15 +256,17 @@ export default {
         Trash2,
         Play,
         Upload,
-        X,
-        Eye
+        X
     },
 
     data() {
         return {
+            deletingIds: [],
             imagePreview: null,
             fileError: null,
             isSaving: false,
+            // Clé d'idempotence du formulaire de création en cours (null en modification).
+            idempotencyKey: null,
             searchQuery: '',
             filterStatus: 'all',
             isDialogOpen: false,
@@ -341,6 +348,7 @@ export default {
 
         openAddDialog() {
             this.editingVideo = null
+            this.idempotencyKey = newIdempotencyKey()
             this.imagePreview = null
             this.fileError = null
             this.dialogData = {
@@ -416,7 +424,12 @@ export default {
                 const res = await this.axios.post(
                     this.$store.state.localhost + 'saveVideo',
                     newVideo,
-                    { headers: { "Content-Type": "multipart/form-data" } }
+                    {
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                            ...idempotencyHeaders(this.editingVideo ? null : this.idempotencyKey)
+                        }
+                    }
                 )
 
                 // Objet serveur : `thumbnail` = nom de fichier stocké (résolu à l'affichage).
@@ -427,10 +440,17 @@ export default {
                     this.showToast("Vidéo mise à jour", "Les modifications ont été enregistrées.")
                 } else {
                     this.videos.unshift(video)
+                    this.idempotencyKey = newIdempotencyKey()
                     this.showToast("Vidéo ajoutée", "La vidéo a été ajoutée avec succès.")
                 }
                 this.closeDialog()
             } catch (e) {
+                const idem = this.editingVideo ? null : describeIdempotencyFailure(e)
+                if (idem) {
+                    if (idem.renewKey) this.idempotencyKey = newIdempotencyKey()
+                    this.showToast("Erreur", idem.message)
+                    return
+                }
                 const errors = e.response?.data?.errors
                 const detail = errors ? Object.values(errors).flat().join(' ') : ''
                 this.showToast("Erreur", detail || e.response?.data?.message || e.message || "Une erreur est survenue")
@@ -449,14 +469,22 @@ export default {
         },
 
         async deleteVideo(id) {
-            if (confirm("Êtes-vous sûr de vouloir supprimer cette vidéo ?")) {
-                try {
-                    await this.axios.delete(this.$store.state.localhost + `deleteVideo/${id}`)
+            if (this.deletingIds.includes(id)) return
+            if (!confirm("Êtes-vous sûr de vouloir supprimer cette vidéo ?")) return
+            this.deletingIds.push(id)
+            try {
+                await this.axios.delete(this.$store.state.localhost + `deleteVideo/${id}`)
+                this.$store.commit('deleteVideo', id)
+                this.showToast("Vidéo supprimée", "La vidéo a été supprimée avec succès.")
+            } catch (e) {
+                if (isAlreadyDeleted(e)) {
                     this.$store.commit('deleteVideo', id)
-                    this.showToast("Vidéo supprimée", "La vidéo a été supprimée avec succès.")
-                } catch (e) {
+                    this.showToast(ALREADY_DELETED_TOAST.title, ALREADY_DELETED_TOAST.description)
+                } else {
                     this.showToast("Erreur", "Impossible de supprimer la vidéo")
                 }
+            } finally {
+                this.deletingIds = this.deletingIds.filter(i => i !== id)
             }
         },
 

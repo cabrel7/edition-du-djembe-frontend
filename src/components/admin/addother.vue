@@ -10,15 +10,25 @@
       </div>
       <div class="flex gap-2">
         <button 
-          @click="fetchTeamMembers"
+          @click="loadData"
           class="border border-input bg-background hover:bg-accent hover:text-accent-foreground px-3 py-2 rounded-md text-sm font-medium inline-flex items-center gap-1"
-          :class="{ 'opacity-50': loadingTeam }"
-          :disabled="loadingTeam"
+          :class="{ 'opacity-50': loadingTeam || loadingPartners }"
+          :disabled="loadingTeam || loadingPartners"
         >
           <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loadingTeam }" />
           {{ loadingTeam ? 'Chargement...' : 'Actualiser' }}
         </button>
       </div>
+    </div>
+
+    <!-- Erreur de chargement -->
+    <div v-if="loadError" role="alert"
+      class="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center justify-between gap-4">
+      <p class="text-sm text-destructive">{{ loadError }}</p>
+      <button @click="loadData" :disabled="loadingTeam || loadingPartners"
+        class="border border-input bg-background hover:bg-accent px-3 py-2 rounded-md text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed">
+        Réessayer
+      </button>
     </div>
 
     <!-- Tabs -->
@@ -67,7 +77,7 @@
           </p>
         </div>
         <button 
-          @click="openTeamDialog"
+          @click="openTeamDialog()"
           class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all inline-flex items-center gap-2"
         >
           <UserPlus class="w-4 h-4" />
@@ -156,8 +166,10 @@
               </button>
               <button 
                 @click="deleteTeamMember(member.id)"
-                class="p-2 text-destructive hover:bg-secondary rounded-md transition-colors"
-                title="Supprimer"
+                :disabled="deletingIds.includes(member.id)"
+                :aria-busy="deletingIds.includes(member.id)"
+                class="p-2 text-destructive hover:bg-secondary rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                :title="deletingIds.includes(member.id) ? 'Suppression...' : 'Supprimer'"
               >
                 <Trash2 class="w-4 h-4" />
               </button>
@@ -174,7 +186,7 @@
         <p class="text-lg text-muted-foreground mb-2">Aucun membre d'équipe</p>
         <p class="text-sm text-muted-foreground mb-6">Commencez par ajouter votre premier membre d'équipe</p>
         <button 
-          @click="openTeamDialog"
+          @click="openTeamDialog()"
           class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all inline-flex items-center gap-2"
         >
           <UserPlus class="w-4 h-4" />
@@ -193,7 +205,7 @@
           </p>
         </div>
         <button 
-          @click="openPartnerDialog"
+          @click="openPartnerDialog()"
           class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all inline-flex items-center gap-2"
         >
           <Handshake class="w-4 h-4" />
@@ -272,8 +284,10 @@
               </button>
               <button 
                 @click="deletePartner(partner.id)"
-                class="p-2 text-destructive hover:bg-secondary rounded-md transition-colors"
-                title="Supprimer"
+                :disabled="deletingIds.includes(partner.id)"
+                :aria-busy="deletingIds.includes(partner.id)"
+                class="p-2 text-destructive hover:bg-secondary rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                :title="deletingIds.includes(partner.id) ? 'Suppression...' : 'Supprimer'"
               >
                 <Trash2 class="w-4 h-4" />
               </button>
@@ -290,7 +304,7 @@
         <p class="text-lg text-muted-foreground mb-2">Aucun partenaire</p>
         <p class="text-sm text-muted-foreground mb-6">Commencez par ajouter votre premier partenaire</p>
         <button 
-          @click="openPartnerDialog"
+          @click="openPartnerDialog()"
           class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:opacity-90 transition-all inline-flex items-center gap-2"
         >
           <Handshake class="w-4 h-4" />
@@ -321,11 +335,11 @@
 <script>
 import { 
   UserPlus, Building2, Users, Handshake, User, Edit, Trash2, 
-  Upload, Plus, Globe, RefreshCw, ExternalLink
+  Globe, RefreshCw, ExternalLink
 } from 'lucide-vue-next'
 import TeamMemberDialog from '@/components/admin/TeamMemberDialog.vue'
 import PartnerDialog from '@/components/admin/PartnerDialog.vue'
-import { mapState, mapActions } from 'vuex'
+import { newIdempotencyKey, describeIdempotencyFailure } from '@/utils/idempotency'
 
 export default {
   name: 'AdminTeamPartnersPage',
@@ -338,8 +352,6 @@ export default {
     User,
     Edit,
     Trash2,
-    Upload,
-    Plus,
     Globe,
     RefreshCw,
     ExternalLink,
@@ -356,27 +368,36 @@ export default {
       editingPartner: null,
       loadingTeam: false,
       loadingPartners: false,
+      loadError: '',
+      deletingIds: [],
       savingTeam: false,
-      savingPartner: false
+      savingPartner: false,
+      // Clé d'idempotence du formulaire de création ouvert (null en modification).
+      idempotencyKey: null
     }
   },
   
   computed: {
-  teamMembers(){
-  	return this.$store.state.adminData.team_members
-  },partners(){
-  	return this.$store.state.adminData.partners
-  }
-   
+    teamMembers() {
+      return this.$store.state.adminData.team_members
+    },
+    partners() {
+      return this.$store.state.adminData.partners
+    }
   },
   methods: {
+  // Garde : seul un objet avec id passe en édition (un MouseEvent n'en a pas).
   async openTeamDialog(member = null) {
-    this.editingTeamMember = member
+    const editing = member && member.id ? member : null
+    this.editingTeamMember = editing
+    this.idempotencyKey = editing ? null : newIdempotencyKey()
     this.showTeamDialog = true
   },
 
   async openPartnerDialog(partner = null) {
-    this.editingPartner = partner
+    const editing = partner && partner.id ? partner : null
+    this.editingPartner = editing
+    this.idempotencyKey = editing ? null : newIdempotencyKey()
     this.showPartnerDialog = true
   },
 
@@ -395,8 +416,47 @@ export default {
     return this.$store.dispatch('fetchTeamMembers')
   },
 
+  // Charge équipe + partenaires ; erreur visible (bandeau) avec « Réessayer ».
+  async loadData() {
+    if (this.loadingTeam || this.loadingPartners) return
+    this.loadError = ''
+    this.loadingTeam = true
+    this.loadingPartners = true
+    try {
+      await Promise.all([
+        this.fetchTeamMembers(),
+        this.fetchPartners()
+      ])
+    } catch (error) {
+      console.error('Erreur chargement équipe/partenaires:', error)
+      this.loadError = error.response
+        ? 'Impossible de charger les membres et partenaires.'
+        : 'Erreur réseau : impossible de charger les membres et partenaires. Vérifiez votre connexion.'
+    } finally {
+      this.loadingTeam = false
+      this.loadingPartners = false
+    }
+  },
+
+  // L'écriture a réussi : si seule l'actualisation de la liste échoue, on le dit
+  // (bandeau + « Réessayer ») au lieu d'afficher une fausse erreur de sauvegarde.
+  async refreshAfterChange(fetchList, doneLabel) {
+    try {
+      await fetchList()
+    } catch (error) {
+      console.error('Erreur actualisation après modification:', error)
+      this.loadError = `${doneLabel}, mais la liste n'a pas pu être actualisée.`
+    }
+  },
+
   // Message lisible depuis une erreur axios (422 Laravel : { errors: { champ: [msg] } })
-  describeSaveError(error, fallback) {
+  // isCreate : en création, les échecs réseau/409/422-clé suivent le contrat d'idempotence.
+  describeSaveError(error, fallback, isCreate = false) {
+    const idem = isCreate ? describeIdempotencyFailure(error) : null
+    if (idem) {
+      if (idem.renewKey) this.idempotencyKey = newIdempotencyKey()
+      return idem.message
+    }
     const errors = error.response?.data?.errors
     if (errors) return `${fallback} : ${Object.values(errors).flat().join(' ')}`
     if (!error.response) return `${fallback} : erreur réseau, vérifiez votre connexion et réessayez.`
@@ -408,26 +468,38 @@ export default {
     if (this.savingTeam) return
     this.savingTeam = true
     try {
-      await this.$store.dispatch('saveTeamMember', memberData)
+      const isCreate = !memberData.id
+      await this.$store.dispatch('saveTeamMember', { ...memberData, idempotencyKey: isCreate ? this.idempotencyKey : null })
       this.closeDialog()
-      await this.fetchTeamMembers()
     } catch (error) {
-      alert(this.describeSaveError(error, 'Erreur lors de la sauvegarde du membre'))
+      alert(this.describeSaveError(error, 'Erreur lors de la sauvegarde du membre', !memberData.id))
+      this.savingTeam = false
+      return
+    }
+    try {
+      await this.refreshAfterChange(() => this.fetchTeamMembers(), 'Membre enregistré')
     } finally {
       this.savingTeam = false
     }
   },
 
+  // Les ids en cours de suppression désactivent leur bouton (le DELETE peut être long) ;
+  // un 404 est géré par l'action du store (déjà supprimé : ligne retirée, pas d'erreur).
   async deleteTeamMember(id) {
+    if (this.deletingIds.includes(id)) return
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce membre ?')) return
 
+    this.deletingIds.push(id)
     try {
       await this.$store.dispatch('deleteTeamMember', id)
-      await this.fetchTeamMembers()
     } catch (error) {
       console.error(error)
       alert('Erreur lors de la suppression')
+      return
+    } finally {
+      this.deletingIds = this.deletingIds.filter(i => i !== id)
     }
+    await this.refreshAfterChange(() => this.fetchTeamMembers(), 'Membre supprimé')
   },
 
   // =======================
@@ -443,26 +515,36 @@ export default {
     if (this.savingPartner) return
     this.savingPartner = true
     try {
-      await this.$store.dispatch('savePartner', partnerData)
+      const isCreate = !partnerData.id
+      await this.$store.dispatch('savePartner', { ...partnerData, idempotencyKey: isCreate ? this.idempotencyKey : null })
       this.closeDialog()
-      await this.fetchPartners()
     } catch (error) {
-      alert(this.describeSaveError(error, 'Erreur lors de la sauvegarde du partenaire'))
+      alert(this.describeSaveError(error, 'Erreur lors de la sauvegarde du partenaire', !partnerData.id))
+      this.savingPartner = false
+      return
+    }
+    try {
+      await this.refreshAfterChange(() => this.fetchPartners(), 'Partenaire enregistré')
     } finally {
       this.savingPartner = false
     }
   },
 
   async deletePartner(id) {
+    if (this.deletingIds.includes(id)) return
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce partenaire ?')) return
 
+    this.deletingIds.push(id)
     try {
       await this.$store.dispatch('deletePartner', id)
-      await this.fetchPartners()
     } catch (error) {
       console.error(error)
       alert('Erreur lors de la suppression')
+      return
+    } finally {
+      this.deletingIds = this.deletingIds.filter(i => i !== id)
     }
+    await this.refreshAfterChange(() => this.fetchPartners(), 'Partenaire supprimé')
   },
 
   formatDate(dateString) {
@@ -472,22 +554,9 @@ export default {
 }
 ,
   
-  async mounted() {
-  try {
-    this.loadingTeam = true
-    this.loadingPartners = true
-
-    await Promise.all([
-      this.fetchTeamMembers(),
-      this.fetchPartners()
-    ])
-  } catch (e) {
-    console.error(e)
-  } finally {
-    this.loadingTeam = false
-    this.loadingPartners = false
+  mounted() {
+    return this.loadData()
   }
-}
 
 }
 </script>

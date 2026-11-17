@@ -468,6 +468,30 @@ router.beforeEach(async (to, from, next) => {
   }
 });
 
+const ADMIN_HOME = "/admin";
+const ADMIN_LOGIN = "/admin/login";
+
+// redirectAfterLogin vient du localStorage (donnée non fiable) : on n'accepte qu'un
+// chemin interne /admin..., sans "//", sans antislash ni caractère de contrôle
+// (pas d'open redirect, pas de schéma), et jamais la page de login (boucle) :
+// /admin/login exactement ou /admin/login/..., pas /admin/loginfoo.
+// Seul le CHEMIN (avant ? ou #) est contrôlé pour "//" et "\" : une query légitime peut
+// contenir "//" (ex. ?next=http://…).
+function safeRedirectPath(value) {
+  if (typeof value !== "string") return ADMIN_HOME;
+  const path = value.split(/[?#]/)[0];
+  const isAdminPath = path === ADMIN_HOME || path.startsWith(`${ADMIN_HOME}/`);
+  const isLoginPath = path === ADMIN_LOGIN || path.startsWith(`${ADMIN_LOGIN}/`);
+  const isValid =
+    isAdminPath &&
+    !isLoginPath &&
+    !path.includes("//") &&
+    !path.includes("\\") &&
+    // eslint-disable-next-line no-control-regex
+    !/[\u0000-\u001f\u007f]/.test(value);
+  return isValid ? value : ADMIN_HOME;
+}
+
 // Navigation après login
 router.afterEach((to, from) => {
   // Si on vient de la page de login et qu'on est maintenant sur une page admin
@@ -475,7 +499,8 @@ router.afterEach((to, from) => {
     const redirectPath = localStorage.getItem("redirectAfterLogin");
     if (redirectPath) {
       localStorage.removeItem("redirectAfterLogin");
-      router.push(redirectPath);
+      const target = safeRedirectPath(redirectPath);
+      if (target !== to.fullPath) router.push(target);
     }
   }
   trackPageView(to.path)

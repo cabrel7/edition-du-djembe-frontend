@@ -109,6 +109,23 @@
 
       <!-- Page content -->
       <main class="p-4 lg:p-6 relative">
+        <div
+          v-if="failedLoaders.length"
+          role="alert"
+          class="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-destructive/10 border border-destructive/20 rounded-lg p-4"
+        >
+          <p class="text-sm text-destructive">
+            Impossible de charger {{ failedLabels }}. Vérifiez votre connexion puis réessayez.
+          </p>
+          <button
+            type="button"
+            :disabled="loadingAdmin"
+            @click="retryFailedLoaders"
+            class="border border-input bg-background hover:bg-accent px-4 py-2 rounded-md text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {{ loadingAdmin ? 'Chargement…' : 'Réessayer' }}
+          </button>
+        </div>
                  <div v-if="isdispo"
                   class="bg-primary  z-50 absolute top-4 flex   right-4 animate-fade-in  text-primary-foreground px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-all flex-col items-center justify-center mb-2">
                 <br><h1 class=" font-bold"> {{ message.title }}</h1> 
@@ -141,6 +158,16 @@ import {
   LogOut
 } from 'lucide-vue-next'
 
+// Chargements indépendants de l'admin : l'échec de l'un ne bloque pas les autres.
+const ADMIN_LOADERS = [
+  { action: 'fetchAdminBase', label: 'les données générales' },
+  { action: 'fetchMemoirs', label: 'les mémoires' },
+  { action: 'fetchBooks', label: 'les livres' },
+  { action: 'fetchArticles', label: 'les actualités' }
+]
+// Un 401 est géré par l'intercepteur global (main.js) : pas de bandeau d'erreur.
+const HTTP_UNAUTHORIZED = 401
+
 export default {
   name: 'AdminLayout',
   components: {
@@ -171,6 +198,8 @@ export default {
             description:''
        },
         isdispo: false,
+      loadingAdmin: false,
+      failedLoaders: [],
       sidebarNavigation: [
         { name: "Tableau de bord", href: "/admin", icon: 'LayoutDashboard' },
         { name: "Livres", href: "/admin/livres", icon: 'BookMarked' },
@@ -187,7 +216,32 @@ export default {
       ]
     }
   },
+  computed: {
+    failedLabels() {
+      return this.failedLoaders.map((loader) => loader.label).join(', ')
+    }
+  },
   methods: {
+    async loadAdminData(loaders) {
+      this.loadingAdmin = true
+      try {
+        const results = await Promise.allSettled(
+          loaders.map((loader) => this.$store.dispatch(loader.action))
+        )
+        this.failedLoaders = loaders.filter((loader, index) => {
+          const result = results[index]
+          if (result.status !== 'rejected') return false
+          console.error(`Chargement admin échoué (${loader.action})`, result.reason)
+          return result.reason?.response?.status !== HTTP_UNAUTHORIZED
+        })
+      } finally {
+        this.loadingAdmin = false
+      }
+    },
+    retryFailedLoaders() {
+      if (this.loadingAdmin) return
+      return this.loadAdminData(this.failedLoaders)
+    },
     isActive(href) {
       return this.$route.path === href
     }
@@ -201,11 +255,10 @@ export default {
     }
   }
   ,
- async mounted(){
-    await this.$store.dispatch("fetchAdminBase")
- this.$store.dispatch('fetchMemoirs')
-  this.$store.dispatch('fetchBooks')
-     this.$store.dispatch("fetchArticles");
+  mounted() {
+    // Seul point de chargement des données admin (garantit les données même au
+    // chargement direct d'une URL /admin/*) ; les 4 requêtes partent en parallèle.
+    return this.loadAdminData(ADMIN_LOADERS)
   }
 }
 </script>

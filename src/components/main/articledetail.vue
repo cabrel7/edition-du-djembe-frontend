@@ -176,7 +176,7 @@
 <script>
 import {
   ArrowLeft, Calendar, User, Facebook, Twitter, Linkedin,
-  Eye, Clock, Star, FileText
+  Eye, Clock, FileText
 } from 'lucide-vue-next'
 
 export default {
@@ -191,7 +191,6 @@ export default {
     Linkedin,
     Eye,
     Clock,
-    Star,
     FileText
   },
 

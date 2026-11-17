@@ -56,7 +56,10 @@
                 </button>
                 <button 
                   @click="deleteCategory(category.id)"
-                  class="p-2 text-destructive hover:bg-secondary rounded-md"
+                  :disabled="deletingIds.includes(category.id)"
+                  :aria-busy="deletingIds.includes(category.id)"
+                  :title="deletingIds.includes(category.id) ? 'Suppression...' : 'Supprimer'"
+                  class="p-2 text-destructive hover:bg-secondary rounded-md disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <Trash2 class="w-4 h-4" />
                 </button>
@@ -136,6 +139,8 @@
 
 <script>
 import { Plus, Edit, Trash2, BookMarked, X } from 'lucide-vue-next'
+import { newIdempotencyKey, idempotencyHeaders, describeIdempotencyFailure } from '@/utils/idempotency'
+import { isAlreadyDeleted, ALREADY_DELETED_TOAST } from '@/utils/deletion'
 
 export default {
   name: 'CategoriesAdminPage',
@@ -150,9 +155,12 @@ export default {
   
   data() {
     return {
+      deletingIds: [],
       isDialogOpen: false,
       editingCategory: null,
       isSaving: false,
+      // Clé d'idempotence du formulaire de création en cours (null en modification).
+      idempotencyKey: null,
       
       // Données du formulaire du dialog
       dialogData: {
@@ -172,6 +180,7 @@ export default {
     // Ouvrir le dialog d'ajout
     openAddDialog() {
       this.editingCategory = null
+      this.idempotencyKey = newIdempotencyKey()
       this.dialogData = {
         name: '',
         description: ''
@@ -209,7 +218,8 @@ export default {
       try {
         const res = await this.axios.post(
           this.$store.state.localhost + 'saveCategorie',
-          { ...this.dialogData }
+          { ...this.dialogData },
+          { headers: idempotencyHeaders(this.editingCategory ? null : this.idempotencyKey) }
         )
 
         // Objet renvoyé par le serveur (avec id) : évite le doublon à la
@@ -220,11 +230,14 @@ export default {
           this.showToast("Catégorie mise à jour", "Les modifications ont été enregistrées avec succès.")
         } else {
           this.categories.unshift(saved)
+          this.idempotencyKey = newIdempotencyKey()
           this.showToast("Catégorie créée", "La catégorie a été créée avec succès.")
         }
         this.closeDialog()
       } catch (e) {
-        this.showToast("Erreur", e.response?.data?.message || e.message || "Impossible d'enregistrer la catégorie")
+        const idem = this.editingCategory ? null : describeIdempotencyFailure(e)
+        if (idem && idem.renewKey) this.idempotencyKey = newIdempotencyKey()
+        this.showToast("Erreur", idem?.message || e.response?.data?.message || e.message || "Impossible d'enregistrer la catégorie")
       } finally {
         this.isSaving = false
       }
@@ -232,14 +245,22 @@ export default {
     
     // Supprimer une catégorie
     async deleteCategory(id) {
-      if (confirm("Êtes-vous sûr de vouloir supprimer cette catégorie ?")) {
-        try {
-          await this.axios.delete(this.$store.state.localhost + `deleteCategorie/${id}`)
+      if (this.deletingIds.includes(id)) return
+      if (!confirm("Êtes-vous sûr de vouloir supprimer cette catégorie ?")) return
+      this.deletingIds.push(id)
+      try {
+        await this.axios.delete(this.$store.state.localhost + `deleteCategorie/${id}`)
+        this.$store.commit('deleteCategorie', id)
+        this.showToast("Catégorie supprimée", "La catégorie a été supprimée avec succès.")
+      } catch (e) {
+        if (isAlreadyDeleted(e)) {
           this.$store.commit('deleteCategorie', id)
-          this.showToast("Catégorie supprimée", "La catégorie a été supprimée avec succès.")
-        } catch (e) {
+          this.showToast(ALREADY_DELETED_TOAST.title, ALREADY_DELETED_TOAST.description)
+        } else {
           this.showToast("Erreur", e.response?.data?.message || "Impossible de supprimer la catégorie")
         }
+      } finally {
+        this.deletingIds = this.deletingIds.filter(i => i !== id)
       }
     },
     

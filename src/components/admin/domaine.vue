@@ -104,7 +104,10 @@
                                     <Power class="w-4 h-4" />
                                 </button>
                                 <button @click="deleteDomaine(domaine.id)"
-                                    class="p-2 text-destructive hover:bg-secondary rounded-md" title="Supprimer">
+                                    :disabled="deletingIds.includes(domaine.id)"
+                                    :aria-busy="deletingIds.includes(domaine.id)"
+                                    :title="deletingIds.includes(domaine.id) ? 'Suppression...' : 'Supprimer'"
+                                    class="p-2 text-destructive hover:bg-secondary rounded-md disabled:opacity-60 disabled:cursor-not-allowed">
                                     <Trash2 class="w-4 h-4" />
                                 </button>
                             </div>
@@ -222,6 +225,8 @@
 
 <script>
 import { Plus, Search, Edit, Trash2, X, Power } from 'lucide-vue-next'
+import { newIdempotencyKey, idempotencyHeaders, describeIdempotencyFailure } from '@/utils/idempotency'
+import { isAlreadyDeleted, ALREADY_DELETED_TOAST } from '@/utils/deletion'
 
 export default {
     name: 'AdminDomainesPage',
@@ -237,12 +242,15 @@ export default {
 
     data() {
         return {
+            deletingIds: [],
             searchQuery: '',
             filterStatus: 'all',
             isDialogOpen: false,
             editingDomaine: null,
             errors: [],
             isSaving: false,
+            // Clé d'idempotence du formulaire de création en cours (null en modification).
+            idempotencyKey: null,
 
             // Données du formulaire du dialog
             dialogData: {
@@ -322,6 +330,7 @@ export default {
         // Ouvrir le dialog d'ajout
         openAddDialog() {
             this.editingDomaine = null
+            this.idempotencyKey = newIdempotencyKey()
             this.dialogData = {
                 name: '',
                 slug: '',
@@ -388,7 +397,8 @@ export default {
             try {
                 const res = await this.axios.post(
                     this.$store.state.localhost + 'saveDomaine',
-                    { ...this.dialogData }
+                    { ...this.dialogData },
+                    { headers: idempotencyHeaders(this.editingDomaine ? null : this.idempotencyKey) }
                 )
 
                 // L'objet renvoyé par le serveur porte l'id : indispensable pour
@@ -399,11 +409,14 @@ export default {
                     this.showToast("Domaine mis à jour", "Les modifications ont été enregistrées.")
                 } else {
                     this.domaines.unshift(saved)
+                    this.idempotencyKey = newIdempotencyKey()
                     this.showToast("Domaine créé", "Le domaine a été créé avec succès.")
                 }
                 this.closeDialog()
             } catch (e) {
-                const message = e.response?.data?.message || e.message || "Impossible d'enregistrer le domaine"
+                const idem = this.editingDomaine ? null : describeIdempotencyFailure(e)
+                if (idem && idem.renewKey) this.idempotencyKey = newIdempotencyKey()
+                const message = idem?.message || e.response?.data?.message || e.message || "Impossible d'enregistrer le domaine"
                 this.errors = [message]
                 this.showToast("Erreur", message)
             } finally {
@@ -439,17 +452,25 @@ export default {
 
         // Supprimer un domaine
        async deleteDomaine(id) {
+            if (this.deletingIds.includes(id)) return
             const domaine = this.domaines.find(d => d.id === id)
             if (!domaine) return
            
-            if (confirm(`Êtes-vous sûr de vouloir supprimer le domaine "${domaine.name}" ? Cette action est irréversible.`)) {
-                try {
-                    await this.axios.delete(this.$store.state.localhost + `deleteDomaine/${id}`)
+            if (!confirm(`Êtes-vous sûr de vouloir supprimer le domaine "${domaine.name}" ? Cette action est irréversible.`)) return
+            this.deletingIds.push(id)
+            try {
+                await this.axios.delete(this.$store.state.localhost + `deleteDomaine/${id}`)
+                this.$store.commit('deleteDomain', id)
+                this.showToast("Domaine supprimé", "Le domaine a été supprimé avec succès.")
+            } catch (e) {
+                if (isAlreadyDeleted(e)) {
                     this.$store.commit('deleteDomain', id)
-                    this.showToast("Domaine supprimé", "Le domaine a été supprimé avec succès.")
-                } catch (e) {
+                    this.showToast(ALREADY_DELETED_TOAST.title, ALREADY_DELETED_TOAST.description)
+                } else {
                     this.showToast("Erreur", e.response?.data?.message || "Impossible de supprimer le domaine")
                 }
+            } finally {
+                this.deletingIds = this.deletingIds.filter(i => i !== id)
             }
         },
 

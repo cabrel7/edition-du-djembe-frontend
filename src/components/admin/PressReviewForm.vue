@@ -387,14 +387,26 @@
                   :key="'existing-'+index"
                   class="flex items-center justify-between p-2 bg-secondary/30 rounded-lg"
                 >
-                  <div class="flex items-center gap-2 overflow-hidden">
+                  <div class="flex items-center gap-2 overflow-hidden" :class="{ 'opacity-60 line-through': isDocumentRemoved(doc) }">
                     <FileText class="w-4 h-4 text-primary flex-shrink-0" />
                     <span class="text-sm truncate">{{ doc.name || 'Document' }}</span>
                     <span v-if="doc.size" class="text-xs text-muted-foreground flex-shrink-0">({{ formatFileSize(doc.size) }})</span>
                   </div>
+                  <span v-if="isDocumentRemoved(doc)" class="text-xs text-muted-foreground mx-2 flex-shrink-0">Retiré à l'enregistrement</span>
                   <button
+                    v-if="isDocumentRemoved(doc)"
                     type="button"
-                    @click="removeExistingDocument(index)"
+                    :aria-label="`Annuler le retrait du document ${doc.name || ''}`"
+                    @click="toggleExistingDocument(doc)"
+                    class="text-sm text-primary hover:underline flex-shrink-0"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    v-else
+                    type="button"
+                    :aria-label="`Retirer le document ${doc.name || ''}`"
+                    @click="toggleExistingDocument(doc)"
                     class="text-destructive hover:text-destructive/80"
                   >
                     <X class="w-4 h-4" />
@@ -439,6 +451,7 @@
                     #{{ tag }}
                     <button 
                       type="button"
+                      :aria-label="`Supprimer le tag ${tag}`"
                       @click="removeTag(index)"
                       class="text-muted-foreground hover:text-foreground"
                     >
@@ -449,15 +462,15 @@
                     v-model="newTag"
                     type="text"
                     placeholder="Ajouter un tag..."
+                    aria-label="Ajouter un tag"
                     class="flex-1 min-w-[120px] border-none outline-none bg-transparent text-sm"
-                    @keydown.enter.prevent="addTag"
-                    @keydown.comma.prevent="addTag"
-                    @keydown.space.prevent="addTag"
+                    @keydown="onTagKeydown"
+                    @input="onTagInput"
                     @blur="addTag"
                   />
                 </div>
                 <p class="text-xs text-muted-foreground mt-1">
-                  Appuyez sur Entrée, Virgule ou Espace pour ajouter un tag
+                  Appuyez sur Entrée ou sur la virgule pour ajouter un tag
                 </p>
               </div>
             </div>
@@ -579,6 +592,10 @@
 
 <script>
 import { ArrowLeft, Upload, FileText, X } from 'lucide-vue-next'
+import { newIdempotencyKey, describeIdempotencyFailure } from '@/utils/idempotency'
+
+const TAG_SEPARATOR = ','
+const TAG_CONFIRM_KEYS = ['Enter', TAG_SEPARATOR]
 
 export default {
   name: 'AdminPressReviewForm',
@@ -593,6 +610,8 @@ export default {
   data() {
     return {
       isEditing: false,
+      // Clé d'idempotence de la création en cours (inutilisée en modification).
+      idempotencyKey: newIdempotencyKey(),
       form: {
         title: '',
         subtitle: '',
@@ -612,6 +631,7 @@ export default {
         documents: [],
         new_documents: [],
         existing_documents: [],
+        removed_document_paths: [],
         video_url: '',
         audio_url: '',
         category: 'article',
@@ -637,6 +657,13 @@ export default {
     // Chargement initial OU envoi en cours : aucune action d'enregistrement possible.
     isBusy() {
       return this.loading || this.saving
+    },
+
+    // Chemins relatifs des documents conservés (existants non marqués « à retirer »).
+    keptDocumentPaths() {
+      return (this.form.existing_documents || [])
+        .map(doc => (typeof doc === 'string' ? doc : doc?.path))
+        .filter(path => path && !this.form.removed_document_paths.includes(path))
     }
   },
 
@@ -664,6 +691,7 @@ export default {
         this.form = {
           ...this.form,
           ...data,
+          tags: Array.isArray(data.tags) ? data.tags : [],
           is_published: data.status === 'published',
           cover_url: data.cover_image ? origin + data.cover_image : '',
           gallery_images: (data.gallery_images || []).map(p => origin + p),
@@ -763,6 +791,13 @@ export default {
       if (error.response?.status === 422 && errors) {
         return 'Certains champs sont invalides : ' + Object.values(errors).flat().join(' ')
       }
+      if (!this.isEditing) {
+        const idem = describeIdempotencyFailure(error)
+        if (idem) {
+          if (idem.renewKey) this.idempotencyKey = newIdempotencyKey()
+          return idem.message
+        }
+      }
       const queued = this.form.new_gallery_images ? this.form.new_gallery_images.length : 0
       if (this.isEditing) {
         const kept = queued
@@ -770,7 +805,7 @@ export default {
           : ''
         return 'Envoi interrompu, vous pouvez réessayer sans risque de doublon.' + kept
       }
-      return 'Envoi interrompu. Avant de réessayer, vérifiez dans la liste des articles que celui-ci n\'a pas déjà été créé.'
+      return 'Impossible d\'enregistrer l\'article. Réessayez dans un instant.'
     },
 
     removeExistingGalleryImage(index) {
@@ -806,10 +841,31 @@ export default {
       }
     },
 
-    removeExistingDocument(index) {
-      if (this.form.existing_documents && this.form.existing_documents[index]) {
-        this.form.existing_documents.splice(index, 1)
-      }
+    documentPath(doc) {
+      return typeof doc === 'string' ? doc : doc?.path
+    },
+
+    isDocumentRemoved(doc) {
+      return this.form.removed_document_paths.includes(this.documentPath(doc))
+    },
+
+    // Marque / démarque un document existant : le retrait n'est effectif qu'à
+    // l'enregistrement, donc annulable d'ici là.
+    toggleExistingDocument(doc) {
+      const path = this.documentPath(doc)
+      if (!path) return
+      const removed = this.form.removed_document_paths
+      this.form.removed_document_paths = removed.includes(path)
+        ? removed.filter(p => p !== path)
+        : [...removed, path]
+    },
+
+    // Après un envoi réussi : la liste du serveur fait foi pour les documents.
+    syncDocumentsFromServer(saved) {
+      if (!saved || !Array.isArray(saved.documents)) return
+      this.form.existing_documents = saved.documents
+      this.form.removed_document_paths = []
+      this.form.new_documents = []
     },
 
     formatFileSize(bytes) {
@@ -821,12 +877,28 @@ export default {
     },
 
     // Gestion des tags
+    // Ajoute les tags saisis (séparés par des virgules : saisie ou collage) :
+    // nettoyés (trim, minuscules), sans tag vide ni doublon.
     addTag() {
-      const tag = this.newTag.trim().toLowerCase()
-      if (tag && !this.form.tags.includes(tag)) {
-        this.form.tags.push(tag)
-      }
+      this.newTag
+        .split(TAG_SEPARATOR)
+        .map(tag => tag.trim().toLowerCase())
+        .filter(tag => tag && !this.form.tags.includes(tag))
+        .forEach(tag => this.form.tags.push(tag))
       this.newTag = ''
+    },
+
+    onTagKeydown(event) {
+      // isComposing : Entrée sert à valider une composition IME, pas à ajouter un tag.
+      if (event.isComposing || !TAG_CONFIRM_KEYS.includes(event.key)) return
+      event.preventDefault()
+      this.addTag()
+    },
+
+    // Claviers mobiles (key "Unidentified") et collage : la virgule n'est vue
+    // que dans la valeur du champ.
+    onTagInput() {
+      if (this.newTag.includes(TAG_SEPARATOR)) this.addTag()
     },
 
     removeTag(index) {
@@ -895,9 +967,11 @@ export default {
         })
 
         // Tags
-        if (this.form.tags && this.form.tags.length) {
-          formData.append('tags', JSON.stringify(this.form.tags))
-        }
+        // tags_present=1 toujours envoyé : le backend peut ainsi vider les tags.
+        // Il valide `tags` comme tableau : notation tags[i] (pas de JSON).
+        formData.append('tags_present', 1)
+        const formTags = this.form.tags || []
+        formTags.forEach((tag, index) => formData.append(`tags[${index}]`, tag))
 
         // Meta data
         const metaData = {
@@ -935,8 +1009,11 @@ export default {
         }
 
         // Documents existants à conserver
-        if (this.form.existing_documents && this.form.existing_documents.length) {
-          formData.append('existing_documents', JSON.stringify(this.form.existing_documents))
+        // En édition on l'envoie TOUJOURS (même vide) : sinon retirer le dernier document
+        // est ignoré. Jamais après un chargement raté (garde loadFailed plus haut) :
+        // une liste locale vide purgerait les documents du serveur.
+        if (this.isEditing) {
+          formData.append('existing_documents', JSON.stringify(this.keptDocumentPaths))
         }
 
         let result
@@ -947,11 +1024,15 @@ export default {
             formData
           })
         } else {
-          result = await this.$store.dispatch('adminCreatePressReview', formData)
+          result = await this.$store.dispatch('adminCreatePressReview', {
+            formData,
+            idempotencyKey: this.idempotencyKey
+          })
         }
 
         // Succès : l'état local est remplacé par la galerie serveur, la file est vidée.
         this.syncGalleryFromServer(result?.data)
+        this.syncDocumentsFromServer(result?.data)
         this.$router.push('/admin/press-reviews')
       } catch (error) {
         // File d'envoi conservée (new_gallery_images / aperçus) pour un retry sans doublon.

@@ -124,6 +124,15 @@
       </button>
     </div>
 
+    <!-- Erreur d'action (statut, mise à la une, duplication) -->
+    <div v-if="actionError" role="alert"
+      class="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center justify-between gap-4">
+      <p class="text-sm text-destructive">{{ actionError }}</p>
+      <button @click="actionError = ''" class="border border-input bg-background hover:bg-accent px-3 py-2 rounded-md text-sm font-medium">
+        Fermer
+      </button>
+    </div>
+
     <!-- Table -->
     <div class="bg-card rounded-lg shadow overflow-hidden">
       <div class="overflow-x-auto">
@@ -221,18 +230,21 @@
                   >
                     <ExternalLink class="w-4 h-4" />
                   </button>
-                 <!-- <button
+                  <button
                     @click="duplicateReview(review)"
-                    class="p-2 text-green-600 hover:bg-secondary rounded-md"
-                    title="Dupliquer"
-                  > 
+                    :disabled="duplicatingId !== null"
+                    class="p-2 text-green-600 hover:bg-secondary rounded-md disabled:opacity-60 disabled:cursor-not-allowed"
+                    title="Dupliquer en brouillon"
+                    aria-label="Dupliquer en brouillon"
+                  >
                     <Copy class="w-4 h-4" />
-                   </button> -->
+                  </button>
                   <button 
                     @click="deleteReview(review.id)"
                     :disabled="deletingId === review.id"
+                    :aria-busy="deletingId === review.id"
                     class="p-2 text-destructive hover:bg-secondary rounded-md disabled:opacity-60 disabled:cursor-not-allowed"
-                    title="Supprimer"
+                    :title="deletingId === review.id ? 'Suppression...' : 'Supprimer'"
                   >
                     <Trash2 class="w-4 h-4" />
                   </button>
@@ -301,6 +313,20 @@ import {
   Plus, RefreshCw, Edit, Trash2, ExternalLink, Copy, Star,
   Newspaper
 } from 'lucide-vue-next'
+import { newIdempotencyKey, describeIdempotencyFailure } from '@/utils/idempotency'
+import { isAlreadyDeleted } from '@/utils/deletion'
+
+const DUPLICATE_TITLE_PREFIX = 'Copie de '
+// Longueur max du titre acceptée par le backend (validation title max:255).
+const TITLE_MAX_LENGTH = 255
+// Coupe au dernier espace seulement s'il reste au moins cette part du titre.
+const WORD_BOUNDARY_MIN_RATIO = 0.6
+const DUPLICATE_STATUS = 'draft'
+// Champs texte repris tels quels ; fichiers (couverture, galerie, documents) jamais copiés.
+const DUPLICATED_TEXT_FIELDS = [
+  'subtitle', 'summary', 'content', 'author', 'source', 'source_url',
+  'publication_date', 'video_url', 'audio_url', 'category'
+]
 
 export default {
   name: 'AdminPressReviews',
@@ -341,6 +367,10 @@ export default {
       isLoading: false,
       loadError: '',
       deletingId: null,
+      duplicatingId: null,
+      // Clé de la duplication en cours : réutilisée au retry pour la même revue.
+      duplicateKey: null,
+      actionError: '',
       searchTimeout: null
     }
   },
@@ -415,7 +445,19 @@ export default {
       }
     },
 
+    // Message lisible depuis une erreur axios (422 Laravel : { errors: { champ: [msg] } }).
+    // isCreate : une création suit le contrat d'idempotence (réseau, 409, clé réutilisée).
+    describeActionError(error, fallback, isCreate = false) {
+      const idem = isCreate ? describeIdempotencyFailure(error) : null
+      if (idem) return idem.message
+      const errors = error.response?.data?.errors
+      if (errors) return `${fallback} : ${Object.values(errors).flat().join(' ')}`
+      if (!error.response) return `${fallback} : erreur réseau, vérifiez votre connexion et réessayez.`
+      return error.response.data?.message ? `${fallback} : ${error.response.data.message}` : fallback
+    },
+
     async updateStatus(review) {
+      this.actionError = ''
       try {
         await this.$store.dispatch('adminUpdatePressReviewStatus', {
           id: review.id,
@@ -425,27 +467,80 @@ export default {
         this.loadData()
       } catch (error) {
         console.error('Erreur mise à jour statut:', error)
+        this.actionError = this.describeActionError(error, 'Impossible de modifier le statut')
+        // Resynchronise la liste : le select affichait déjà la valeur refusée.
+        this.loadData()
       }
     },
 
     async toggleFeatured(review) {
+      this.actionError = ''
       try {
         await this.$store.dispatch('adminTogglePressReviewFeatured', review.id)
         review.is_featured = !review.is_featured
       } catch (error) {
         console.error('Erreur toggle featured:', error)
+        this.actionError = this.describeActionError(error, 'Impossible de modifier « à la une »')
       }
     },
 
-    async duplicateReview(review) {
-      if (confirm(`Dupliquer "${review.title}" ?`)) {
-        try {
-          const newReview = { ...review, id: null, title: `${review.title} (copie)` }
-          await this.$store.dispatch('adminCreatePressReview', newReview)
-          this.loadData()
-        } catch (error) {
-          console.error('Erreur duplication:', error)
+    // FormData d'un brouillon copié depuis une revue complète (sans fichiers).
+    // « Copie de … » tronqué à TITLE_MAX_LENGTH, sans couper un mot si possible.
+    duplicateTitle(title) {
+      const full = `${DUPLICATE_TITLE_PREFIX}${title}`
+      if (full.length <= TITLE_MAX_LENGTH) return full
+      const cut = full.slice(0, TITLE_MAX_LENGTH)
+      const lastSpace = cut.lastIndexOf(' ')
+      const kept = lastSpace >= TITLE_MAX_LENGTH * WORD_BOUNDARY_MIN_RATIO ? cut.slice(0, lastSpace) : cut
+      return kept.trimEnd()
+    },
+
+    buildDuplicateFormData(source) {
+      const formData = new FormData()
+      formData.append('title', this.duplicateTitle(source.title))
+      formData.append('status', DUPLICATE_STATUS)
+      formData.append('is_featured', 0)
+      DUPLICATED_TEXT_FIELDS.forEach(field => {
+        if (source[field] !== null && source[field] !== undefined && source[field] !== '') {
+          formData.append(field, source[field])
         }
+      })
+      // Le backend valide `tags` comme tableau : notation tags[i].
+      // tags_present : permet au backend de distinguer « aucun tag » de « champ absent ».
+      formData.append('tags_present', 1)
+      const tags = source.tags || []
+      tags.forEach((tag, index) => formData.append(`tags[${index}]`, tag))
+      return formData
+    },
+
+    duplicateKeyFor(reviewId) {
+      if (!this.duplicateKey || this.duplicateKey.reviewId !== reviewId) {
+        this.duplicateKey = { reviewId, key: newIdempotencyKey() }
+      }
+      return this.duplicateKey.key
+    },
+
+    async duplicateReview(review) {
+      if (this.duplicatingId !== null) return
+      if (!confirm(`Dupliquer "${review.title}" en brouillon ?`)) return
+      this.duplicatingId = review.id
+      this.actionError = ''
+      let isCreating = false
+      try {
+        // La liste est allégée : on relit la revue complète (contenu, tags…).
+        const full = await this.$store.dispatch('adminFetchPressReview', review.id)
+        isCreating = true
+        await this.$store.dispatch('adminCreatePressReview', {
+          formData: this.buildDuplicateFormData(full.data),
+          idempotencyKey: this.duplicateKeyFor(review.id)
+        })
+        this.duplicateKey = null
+        await this.loadData()
+      } catch (error) {
+        console.error('Erreur duplication:', error)
+        this.actionError = this.describeActionError(error, 'Impossible de dupliquer l\'article', isCreating)
+      } finally {
+        this.duplicatingId = null
       }
     },
 
@@ -457,7 +552,12 @@ export default {
           await this.$store.dispatch('adminDeletePressReview', id)
           this.loadData()
         } catch (error) {
-          alert(error.response?.data?.message || 'Impossible de supprimer l\'article.')
+          if (isAlreadyDeleted(error)) {
+            // Déjà supprimé : la liste rechargée retire la ligne, sans erreur.
+            this.loadData()
+          } else {
+            alert(error.response?.data?.message || 'Impossible de supprimer l\'article.')
+          }
         } finally {
           this.deletingId = null
         }

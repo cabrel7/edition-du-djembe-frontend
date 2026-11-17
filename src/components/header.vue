@@ -54,7 +54,7 @@
             v-for="item in navigation"
             :key="item.name"
             :to="item.href"
-            @click.native="closeMobileMenu"
+            @click="closeMobileMenu"
             :class="[
               'px-3 py-2 text-sm font-medium rounded-md transition-colors',
               $route.path === item.href
@@ -72,15 +72,14 @@
 </template>
 
 <script>
-import { Menu, X, BookOpen } from 'lucide-vue-next'
+import { Menu, X } from 'lucide-vue-next'
 
 export default {
-  name: 'Header',
+  name: 'SiteHeader',
   
   components: {
     Menu,
-    X,
-    BookOpen
+    X
   },
   
   data() {

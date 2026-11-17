@@ -263,10 +263,7 @@ export default {
           // Mettre à jour le store Vuex
           this.$store.commit('setUser', response.data.user)
 
-          // Si l'utilisateur est admin, charger les données admin
-          if (response.data.user.role === 1) {
-            await this.$store.dispatch('fetchAdminBase')
-          }
+          // Les données admin sont chargées par layout.vue au montage de /admin.
 
           // Afficher un message de succès
           this.showSuccessToast()
@@ -295,7 +292,7 @@ export default {
             case 422:
               if (error.response.data.errors) {
                 Object.keys(error.response.data.errors).forEach(field => {
-                  if (this.errors.hasOwnProperty(field)) {
+                  if (Object.prototype.hasOwnProperty.call(this.errors, field)) {
                     this.errors[field] = error.response.data.errors[field][0]
                   }
                 })

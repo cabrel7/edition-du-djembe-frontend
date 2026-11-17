@@ -130,13 +130,12 @@
 </template>
 
 <script>
-import { BookOpen, Mail, Phone, MapPin, Facebook, Twitter, Linkedin, Instagram } from 'lucide-vue-next'
+import { Mail, Phone, MapPin, Facebook, Twitter, Linkedin, Instagram } from 'lucide-vue-next'
 
 export default {
-  name: 'Footer',
+  name: 'SiteFooter',
   
   components: {
-    BookOpen,
     Mail,
     Phone,
     MapPin,
@@ -180,7 +179,6 @@ export default {
   
   methods: {
     shareOnFacebook() {
-      const url = encodeURIComponent(window.location.href)
       window.open(`https://www.facebook.com/share/1NX7SYkGeL/`, '_blank')
     },
     
@@ -191,7 +189,6 @@ export default {
     },
     
     shareOnLinkedin() {
-      const url = encodeURIComponent(window.location.href)
       window.open(`https://www.linkedin.com/company/les-%C3%A9ditions-du-djemb%C3%A9-d%E2%80%99%C3%A9b%C3%A8ne`, '_blank')
     },
     

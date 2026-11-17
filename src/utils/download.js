@@ -3,6 +3,9 @@
 const HTTP_NOT_FOUND = 404
 const HTTP_UNAUTHORIZED = 401
 const HTTP_FORBIDDEN = 403
+// Délai avant de libérer l'URL objet : certains navigateurs lisent le Blob
+// après le retour de click() ; une révocation immédiate peut annuler le téléchargement.
+const REVOKE_URL_DELAY_MS = 1000
 
 // Extrait le nom de fichier d'un en-tête Content-Disposition
 // (filename*=UTF-8''… prioritaire, puis filename="…"). Retourne null sinon.
@@ -20,7 +23,23 @@ export function filenameFromDisposition(header) {
   return plain ? plain[1].trim() : null
 }
 
-// Déclenche l'enregistrement d'un Blob et libère l'URL objet.
+const FILENAME_MAX_LENGTH = 120
+const FILENAME_FALLBACK = 'memoire'
+// Caractères interdits dans un nom de fichier (Windows/Unix) et caractères de contrôle.
+// eslint-disable-next-line no-control-regex
+const UNSAFE_FILENAME_CHARS = /[\\/:*?"<>|\u0000-\u001f\u007f]/g
+
+// Nom de fichier de repli assaini à partir d'un titre libre.
+export function safeFilenameBase(title) {
+  const cleaned = String(title ?? '')
+    .replace(UNSAFE_FILENAME_CHARS, '')
+    .trim()
+    .slice(0, FILENAME_MAX_LENGTH)
+    .trim()
+  return cleaned || FILENAME_FALLBACK
+}
+
+// Déclenche l'enregistrement d'un Blob puis libère l'URL objet (différé).
 export function saveBlob(blob, filename) {
   const url = window.URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -29,7 +48,7 @@ export function saveBlob(blob, filename) {
   document.body.appendChild(link)
   link.click()
   link.remove()
-  window.URL.revokeObjectURL(url)
+  setTimeout(() => window.URL.revokeObjectURL(url), REVOKE_URL_DELAY_MS)
 }
 
 // Message utilisateur pour une erreur axios de téléchargement. Avec

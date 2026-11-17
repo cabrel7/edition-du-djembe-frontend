@@ -251,7 +251,7 @@
 import axios from 'axios';
 import { 
   ArrowLeft, Download, GraduationCap, Calendar, Building, 
-  BookOpen, Eye, File, User
+  User
 } from 'lucide-vue-next'
 
 export default {
@@ -263,9 +263,6 @@ export default {
     GraduationCap,
     Calendar,
     Building,
-    BookOpen,
-    Eye,
-    File,
     User
   },
   

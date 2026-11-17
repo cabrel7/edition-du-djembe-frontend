@@ -315,7 +315,7 @@ export default {
         if (error.response && error.response.data && error.response.data.errors) {
           const apiErrors = error.response.data.errors
           Object.keys(apiErrors).forEach(key => {
-            if (this.errors.hasOwnProperty(key)) {
+            if (Object.prototype.hasOwnProperty.call(this.errors, key)) {
               this.errors[key] = apiErrors[key][0]
             }
           })
@@ -340,7 +340,6 @@ export default {
 
     // Partager sur les réseaux sociaux
     shareOnFacebook() {
-      const url = encodeURIComponent(window.location.href)
       window.open(`https://www.facebook.com/share/1NX7SYkGeL/`, '_blank')
     },
 
@@ -351,7 +350,6 @@ export default {
     },
 
     shareOnLinkedin() {
-      const url = encodeURIComponent(window.location.href)
       window.open(`https://www.linkedin.com/company/les-%C3%A9ditions-du-djemb%C3%A9-d%E2%80%99%C3%A9b%C3%A8ne`, '_blank')
     },
 

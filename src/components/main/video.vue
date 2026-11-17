@@ -550,9 +550,9 @@ export default {
     getPeerTubeEmbedUrl(url) {
       if (!url) return url
       // Format attendu: https://peertube.instance/videos/watch/video-id
-      const videoId = url.match(/\/videos\/watch\/([^\/?]+)/)
+      const videoId = url.match(/\/videos\/watch\/([^/?]+)/)
       if (videoId) {
-        const instance = url.match(/https?:\/\/([^\/]+)/)
+        const instance = url.match(/https?:\/\/([^/]+)/)
         if (instance) {
           return `https://${instance[1]}/videos/embed/${videoId[1]}`
         }
@@ -568,7 +568,7 @@ export default {
         return `https://player.twitch.tv/?video=${videoMatch[1]}&parent=${window.location.hostname}&autoplay=true`
       }
       
-      const channelMatch = url.match(/twitch\.tv\/([^\/?]+)/)
+      const channelMatch = url.match(/twitch\.tv\/([^/?]+)/)
       if (channelMatch) {
         return `https://player.twitch.tv/?channel=${channelMatch[1]}&parent=${window.location.hostname}&autoplay=true`
       }
@@ -578,7 +578,7 @@ export default {
     
     getTedEmbedUrl(url) {
       if (!url) return url
-      const videoId = url.match(/ted\.com\/talks\/([^\/?]+)/)
+      const videoId = url.match(/ted\.com\/talks\/([^/?]+)/)
       return videoId ? `https://embed.ted.com/talks/${videoId[1]}` : url
     },
     

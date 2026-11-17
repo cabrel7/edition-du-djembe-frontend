@@ -46,10 +46,14 @@ axios.interceptors.response.use(
       localStorage.removeItem('token')
       localStorage.removeItem('isconnect')
       localStorage.removeItem('userData')
-      if (!window.location.pathname.startsWith('/admin/login')) {
-        window.location.href = window.location.pathname.startsWith('/admin')
-          ? '/admin/login'
-          : '/'
+      // Navigation SPA (et non window.location) : un rechargement complet
+      // avorterait (ERR_ABORTED) les requêtes parallèles encore en vol.
+      const { path, fullPath } = router.currentRoute.value
+      if (!path.startsWith('/admin/login')) {
+        if (path.startsWith('/admin')) {
+          localStorage.setItem('redirectAfterLogin', fullPath)
+        }
+        router.replace(path.startsWith('/admin') ? '/admin/login' : '/')
       }
     }
     return Promise.reject(error)

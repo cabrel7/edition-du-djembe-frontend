@@ -301,10 +301,6 @@ computed: {
     },
 
     formatPrice
-  },
-  
-  mounted() {
-    console.log('Admin dashboard mounted')
   }
 }
 </script>

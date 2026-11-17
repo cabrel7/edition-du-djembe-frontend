@@ -69,14 +69,14 @@
               <Heart class="w-7 h-7 text-primary" />
             </div>
             <h3 class="text-xl font-semibold text-foreground mb-4">Nos Valeurs</h3>
-            <p class="text-muted-foreground leading-relaxed">
+            <div class="text-muted-foreground leading-relaxed whitespace-pre-line">
              Portée par l'image du djembé instrument d'alerte, de lien et d'éveil et par l'ébène – symbole de résistance et de noblesse, notre maison défend une édition fière, exigeante et engagée. Nous valorisons :
 <br><li class="font-bold">L'excellence</li> scientifique et littéraire, garantissant la rigueur des contenus ;
 <br><li class="font-bold"> La diversité des genres</li> de la recherche académique aux romans à dimension sociale, en passant par la poésie et l'oraliture ;
 <br> <li class="font-bold"> L'engagement</li> de chaque auteur·e, qu'il s'agisse de transmission de savoirs ou de combats contemporains ;
 <br> <li class="font-bold"> décoloniale</li> qui fait entendre les voix africaines, diasporiques et alliées, tout en bâtissant des passerelles entre cultures.
 Ainsi, à chaque nouveau titre, Le Djembé d'Ébène réaffirme son pari : honorer, amplifier et transmettre les paroles vraies, pour que leur rythme transforme le monde.
-            </p>
+            </div>
           </div>
         </div>
         <div class="bg-card p-8 mt-8 rounded-lg card-shadow">

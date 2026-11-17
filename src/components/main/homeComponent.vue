@@ -275,16 +275,13 @@
 </template>
 
 <script>
-import { ArrowRight, BookOpen, GraduationCap, Newspaper, ChevronRight } from 'lucide-vue-next'
+import { ArrowRight, ChevronRight } from 'lucide-vue-next'
 
 export default {
   name: 'HomePage',
 
   components: {
     ArrowRight,
-    BookOpen,
-    GraduationCap,
-    Newspaper,
     ChevronRight
   },
 

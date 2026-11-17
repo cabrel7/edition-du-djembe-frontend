@@ -145,7 +145,7 @@
               <p class="mb-4">En ce qui concerne <strong>les notes références</strong>, nous privilégions le style Chicago (également appelé format classique ou traditionnel), les références sont présentées en notes de bas de page ou en fin de chapitre (ou à la fin du document). Chaque note doit inclure <strong>:</strong> le prénom et le nom (en majuscule) de l'auteur.e., le titre de l'ouvrage, le lieu de publication, la maison d'édition, la date de publication, et, le cas échéant, les pages spécifiques consultées et éventuellement la/les pages citées.</p>
               
               <div class="bg-muted p-4 rounded mb-4">
-                <p class="text-sm italic">Exemple : Mélanie OUELLETTE, « Les Canadiens français, l'histoire et la démocratie : l'interprétation de Pierre Elliott Trudeau », <em>Mens. Revue du Centre de recherche en civilisation canadienne-française</em>, vol. 1, no 1, 2000, p. 37–50.</p>
+                <p class="text-sm italic">Exemple : Mélanie OUELLETTE, «&#8239;Les Canadiens français, l'histoire et la démocratie&#8239;: l'interprétation de Pierre Elliott Trudeau&#8239;», <em>Mens. Revue du Centre de recherche en civilisation canadienne-française</em>, vol.&#8239;1, no&#8239;1, 2000, p.&#8239;37–50.</p>
               </div>
 
               <h5 class="font-semibold mb-2">4.1 Ouvrage (un seul auteur.e.s)</h5>
@@ -557,7 +557,7 @@ export default {
         }
 
         // Envoyer à l'API
-        const response = await axios.post(
+        await axios.post(
           `${this.$store.state.localhost}submissions`,
           formData,
           {
@@ -577,7 +577,7 @@ export default {
         if (error.response?.status === 422) {
           const errors = error.response.data.errors
           Object.keys(errors).forEach(field => {
-            if (this.errors.hasOwnProperty(field)) {
+            if (Object.prototype.hasOwnProperty.call(this.errors, field)) {
               this.errors[field] = errors[field][0]
             }
           })

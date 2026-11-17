@@ -11,7 +11,8 @@
       <div class="flex gap-2">
         <button 
           @click="refreshContacts"
-          class="border border-input bg-background hover:bg-accent px-4 py-2 rounded-md font-medium inline-flex items-center gap-2"
+          :disabled="isLoading"
+          class="border border-input bg-background hover:bg-accent px-4 py-2 rounded-md font-medium inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <RefreshCw class="w-4 h-4" />
           Actualiser
@@ -24,6 +25,16 @@
           Exporter CSV
         </button>
       </div>
+    </div>
+
+    <!-- Erreur de chargement -->
+    <div v-if="loadError" role="alert"
+      class="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center justify-between gap-4">
+      <p class="text-sm text-destructive">{{ loadError }}</p>
+      <button @click="fetchContacts" :disabled="isLoading"
+        class="border border-input bg-background hover:bg-accent px-3 py-2 rounded-md text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed">
+        Réessayer
+      </button>
     </div>
 
     <!-- Filtres -->
@@ -252,7 +263,10 @@
             </span>
             <button 
               @click="toggleStatus(selectedContact)"
-              class="px-3 py-1 rounded border border-input bg-background text-sm hover:bg-secondary"
+              :disabled="isUpdatingStatus || !canToggleRead(selectedContact)"
+              :aria-busy="isUpdatingStatus"
+              :title="canToggleRead(selectedContact) ? '' : 'Un contact répondu ou archivé conserve son statut'"
+              class="px-3 py-1 rounded border border-input bg-background text-sm hover:bg-secondary disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {{ selectedContact.status === 'pending' ? 'Marquer comme lu' : 'Marquer non lu' }}
             </button>
@@ -324,9 +338,11 @@
           <div>
             <button 
               @click="deleteContact(selectedContact.id)"
-              class="text-destructive hover:underline text-sm"
+              :disabled="isDeleting"
+              :aria-busy="isDeleting"
+              class="text-destructive hover:underline text-sm disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Supprimer ce contact
+              {{ isDeleting ? 'Suppression...' : 'Supprimer ce contact' }}
             </button>
           </div>
           <div class="flex gap-2">
@@ -374,21 +390,18 @@
 
 <script>
 import { 
-  Plus, Edit, Trash2, X, Eye, Reply, CheckCircle, 
+  X, Eye, Reply, 
   User, Download, RefreshCw, Inbox 
 } from 'lucide-vue-next'
 import axios from 'axios';
+import { isAlreadyDeleted, ALREADY_DELETED_TOAST } from '@/utils/deletion'
 export default {
   name: 'ContactsAdminPage',
   
   components: {
-    Plus,
-    Edit,
-    Trash2,
     X,
     Eye,
     Reply,
-    CheckCircle,
     User,
     Download,
     RefreshCw,
@@ -410,8 +423,11 @@ export default {
       currentPage: 1,
       itemsPerPage: 20,
       
-      // Données mockées des contacts
-     contacts:[]
+      isLoading: false,
+      loadError: '',
+      isDeleting: false,
+      isUpdatingStatus: false,
+      contacts: []
     }
   },
   
@@ -465,6 +481,8 @@ export default {
   methods: {
     
   async fetchContacts() {
+    this.isLoading = true
+    this.loadError = ''
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${this.$store.state.localhost}contacts`, {
@@ -475,10 +493,19 @@ export default {
       this.pagination = response.data.pagination;
     } catch (error) {
       console.error('Erreur lors du chargement des contacts:', error);
+      if (error.response?.status !== 401) {
+        this.loadError = error.response
+          ? 'Impossible de charger les contacts.'
+          : 'Erreur réseau : impossible de charger les contacts. Vérifiez votre connexion.'
+      }
+    } finally {
+      this.isLoading = false
     }
   },
   
   async updateContactStatus(contactId, status) {
+    if (this.isUpdatingStatus) return
+    this.isUpdatingStatus = true
     try {
       const token = localStorage.getItem('token');
       await axios.put(
@@ -490,12 +517,33 @@ export default {
       // Mettre à jour localement
       const contact = this.contacts.find(c => c.id === contactId);
       if (contact) contact.status = status;
+      if (this.selectedContact && this.selectedContact.id === contactId) {
+        this.selectedContact.status = status
+      }
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut:', error);
+      this.showToast("Erreur", "Impossible de modifier le statut du contact. Réessayez.")
+      // Resynchronise la copie affichée dans la modale avec la ligne de la liste.
+      const row = this.contacts.find(c => c.id === contactId)
+      if (row && this.selectedContact && this.selectedContact.id === contactId) {
+        this.selectedContact.status = row.status
+      }
+    } finally {
+      this.isUpdatingStatus = false
     }
   },
   
+  removeContactLocally(contactId) {
+    this.contacts = this.contacts.filter(c => c.id !== contactId)
+    if (this.selectedContact && this.selectedContact.id === contactId) {
+      this.closeModal()
+    }
+  },
+
   async deleteContact(contactId) {
+    if (this.isDeleting) return
+    if (!confirm("Êtes-vous sûr de vouloir supprimer ce contact ? Cette action est irréversible.")) return
+    this.isDeleting = true
     try {
       const token = localStorage.getItem('token');
       await axios.delete(
@@ -504,9 +552,18 @@ export default {
       );
       
       // Supprimer localement
-      this.contacts = this.contacts.filter(c => c.id !== contactId);
+      this.removeContactLocally(contactId)
+      this.showToast("Contact supprimé", "Le contact a été supprimé avec succès.")
     } catch (error) {
-      console.error('Erreur lors de la suppression:', error);
+      if (isAlreadyDeleted(error)) {
+        this.removeContactLocally(contactId)
+        this.showToast(ALREADY_DELETED_TOAST.title, ALREADY_DELETED_TOAST.description)
+      } else {
+        console.error('Erreur lors de la suppression:', error);
+        this.showToast("Erreur", "Impossible de supprimer le contact. Réessayez.")
+      }
+    } finally {
+      this.isDeleting = false
     }
   }
 ,
@@ -571,30 +628,23 @@ export default {
       window.open(`mailto:${contact.email}?subject=${emailSubject}&body=${emailBody}`, '_blank')
     },
     
+    // lu / non lu ne concerne que pending et read : replied et archived sont conservés.
+    canToggleRead(contact) {
+      return contact.status === 'pending' || contact.status === 'read'
+    },
+
+    // Bascule lu / non lu (libellé du bouton) et PERSISTE côté serveur.
     toggleStatus(contact) {
-      const statusOrder = ['pending', 'read', 'replied', 'archived']
-      const currentIndex = statusOrder.indexOf(contact.status)
-      const nextIndex = (currentIndex + 1) % statusOrder.length
-      contact.status = statusOrder[nextIndex]
-      
-      if (this.selectedContact && this.selectedContact.id === contact.id) {
-        this.selectedContact.status = contact.status
-      }
+      if (!this.canToggleRead(contact)) return
+      const nextStatus = contact.status === 'pending' ? 'read' : 'pending'
+      return this.updateContactStatus(contact.id, nextStatus)
     },
     
-    deleteContact(id) {
-      if (confirm("Êtes-vous sûr de vouloir supprimer ce contact ? Cette action est irréversible.")) {
-        this.contacts = this.contacts.filter(c => c.id !== id)
-        if (this.selectedContact && this.selectedContact.id === id) {
-          this.closeModal()
-        }
-        this.showToast("Contact supprimé", "Le contact a été supprimé avec succès.")
+    async refreshContacts() {
+      await this.fetchContacts()
+      if (!this.loadError) {
+        this.showToast("Actualisation", "Les contacts ont été actualisés.")
       }
-    },
-    
-    refreshContacts() {
-      // Ici, vous feriez un appel API pour rafraîchir les données
-      this.showToast("Actualisation", "Les contacts ont été actualisés.")
     },
     
     exportToCSV() {

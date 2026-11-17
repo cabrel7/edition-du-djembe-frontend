@@ -1,6 +1,8 @@
 import { createStore } from "vuex";
 import axios from "axios";
 import { stripNonFileUploads } from "@/utils/files";
+import { idempotencyHeaders } from "@/utils/idempotency";
+import { isAlreadyDeleted } from "@/utils/deletion";
 
 // --------- HELPER GLOBAL POUR AJOUTER L'URL SUR COVER ---------
 function applyCover(items, baseUrl) {
@@ -160,7 +162,6 @@ export default createStore({
     setDat(state) {
       let download = 0;
       let visit = 0;
-      console.log(state.books, 'wert', state.articles, 'hjk', state.memoirs);
       
       if (state.books && Array.isArray(state.books)) {
         state.books.forEach(element => {
@@ -273,18 +274,28 @@ export default createStore({
     },
 
     // -------- ADMIN BASE --------
+    // Merge NON destructif : seules les clés présentes dans la payload remplacent
+    // l'état. /adminbase ne renvoie ni team_members ni partners (chargés par leurs
+    // propres actions) : une réponse partielle ne vide jamais une liste déjà chargée,
+    // quel que soit l'ordre d'arrivée des réponses.
     SET_ADMIN_DATA(state, data) {
-      state.adminData = {
-        ...state.adminData,
-        ...data,
-        videos: applyCover(data.videos, state.videocover),
-        books: applyCover(data.books, state.bookcover),
-        articles: applyCover(data.articles, state.articlecover),
-        memoirs: applyCover(data.memoirs, state.memoircover),
-        // AJOUT: Appliquer les URLs pour les membres et partenaires
-        team_members: applyCover(data.team_members || [], state.teamcover),
-        partners: applyCover(data.partners || [], state.partnercover)
+      const coverBases = {
+        videos: state.videocover,
+        books: state.bookcover,
+        articles: state.articlecover,
+        memoirs: state.memoircover,
+        team_members: state.teamcover,
+        partners: state.partnercover
       };
+      const incoming = { ...data };
+      Object.keys(coverBases).forEach((key) => {
+        if (Array.isArray(data[key])) {
+          incoming[key] = applyCover(data[key], coverBases[key]);
+        } else {
+          delete incoming[key];
+        }
+      });
+      state.adminData = { ...state.adminData, ...incoming };
     },
 
     // -------- AJOUT: SET TEAM MEMBERS (ADMIN) --------
@@ -509,7 +520,7 @@ export default createStore({
   },
 
   actions: {
-    async checkAuth({ commit, dispatch, state }) {
+    async checkAuth({ commit, dispatch }) {
       // Session = cookie httpOnly ; localStorage ne garde que les flags
       // (isconnect/userData) — plus de token lisible depuis 92fe7c8.
       const isConnected = localStorage.getItem("isconnect") === "1";
@@ -545,7 +556,7 @@ export default createStore({
     },
 
     // Action de login améliorée
-    async login({ commit, dispatch }, credentials) {
+    async login({ commit }, credentials) {
       try {
         const response = await axios.post(
           `${this.state.localhost}login`,
@@ -560,10 +571,8 @@ export default createStore({
 
           commit("setUser", response.data.user);
 
-          // Si admin, charger les données admin
-          if (response.data.user.role === 1) {
-            await dispatch("fetchAdminBase");
-          }
+          // Les données admin sont chargées par layout.vue au montage (une seule
+          // fois, y compris au chargement direct d'une URL /admin/*).
 
           // Déclencher un événement personnalisé pour notifier la connexion
           window.dispatchEvent(new Event("user-logged-in"));
@@ -656,13 +665,15 @@ export default createStore({
       }
     },
 
-    async adminCreatePressReview({ commit }, formData) {
+    // payload : { formData, idempotencyKey } — la clé est celle du formulaire de création.
+    async adminCreatePressReview({ commit }, { formData, idempotencyKey }) {
       try {
         const token = localStorage.getItem('token');
         const response = await axios.post(`${this.state.localhost}admin/press-reviews`, formData, {
           headers: { 
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
+            'Content-Type': 'multipart/form-data',
+            ...idempotencyHeaders(idempotencyKey)
           }
         });
         commit('ADD_PRESS_REVIEW', response.data.data);
@@ -705,7 +716,7 @@ export default createStore({
     
     // store/index.js - Ajoutez ces actions supplémentaires
 
-    async adminFetchPressReview({ commit }, id) {
+    async adminFetchPressReview(_context, id) {
       try {
         const token = localStorage.getItem('token');
         const response = await axios.get(`${this.state.localhost}admin/press-reviews/${id}`, {
@@ -718,7 +729,7 @@ export default createStore({
       }
     },
 
-    async adminUpdatePressReviewStatus({ commit }, { id, status }) {
+    async adminUpdatePressReviewStatus(_context, { id, status }) {
       try {
         const token = localStorage.getItem('token');
         const response = await axios.put(`${this.state.localhost}admin/press-reviews/${id}/status`, 
@@ -732,7 +743,7 @@ export default createStore({
       }
     },
 
-    async adminTogglePressReviewFeatured({ commit }, id) {
+    async adminTogglePressReviewFeatured(_context, id) {
       try {
         const token = localStorage.getItem('token');
         const response = await axios.put(`${this.state.localhost}admin/press-reviews/${id}/featured`, {}, {
@@ -745,7 +756,7 @@ export default createStore({
       }
     },
 
-    async adminUploadEditorImage({ commit }, imageFile) {
+    async adminUploadEditorImage(_context, imageFile) {
       try {
         const token = localStorage.getItem('token');
         const formData = new FormData();
@@ -959,7 +970,8 @@ export default createStore({
     },
 
     // -------- AJOUT: SAVE/UPDATE TEAM MEMBER --------
-    async saveTeamMember({ commit, state }, memberData) {
+    // memberData.idempotencyKey (création uniquement) est retiré du corps et envoyé en en-tête.
+    async saveTeamMember({ commit, state }, { idempotencyKey, ...memberData }) {
       const token = localStorage.getItem("token");
       const isUpdate = memberData.id;
       
@@ -980,7 +992,8 @@ export default createStore({
         const response = await axios.post(url, payload, {
           headers: { 
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
+            'Content-Type': 'multipart/form-data',
+            ...idempotencyHeaders(isUpdate ? null : idempotencyKey)
           }
         });
         
@@ -997,7 +1010,8 @@ export default createStore({
     },
 
     // -------- AJOUT: SAVE/UPDATE PARTNER --------
-    async savePartner({ commit, state }, partnerData) {
+    // partnerData.idempotencyKey (création uniquement) est retiré du corps et envoyé en en-tête.
+    async savePartner({ commit, state }, { idempotencyKey, ...partnerData }) {
       const token = localStorage.getItem("token");
       const isUpdate = partnerData.id;
       
@@ -1016,7 +1030,8 @@ export default createStore({
         const response = await axios.post(url, payload, {
           headers: { 
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
+            'Content-Type': 'multipart/form-data',
+            ...idempotencyHeaders(isUpdate ? null : idempotencyKey)
           }
         });
         
@@ -1047,6 +1062,11 @@ export default createStore({
           throw new Error(response.data.message || 'Erreur lors de la suppression');
         }
       } catch (error) {
+        // 404 : déjà supprimé (double clic, autre onglet) → on retire la ligne, sans erreur.
+        if (isAlreadyDeleted(error)) {
+          commit('deleteTeamMember', memberId);
+          return { success: true, alreadyDeleted: true };
+        }
         console.error('Erreur lors de la suppression du membre:', error);
         throw error;
       }
@@ -1067,6 +1087,10 @@ export default createStore({
           throw new Error(response.data.message || 'Erreur lors de la suppression');
         }
       } catch (error) {
+        if (isAlreadyDeleted(error)) {
+          commit('deletePartner', partnerId);
+          return { success: true, alreadyDeleted: true };
+        }
         console.error('Erreur lors de la suppression du partenaire:', error);
         throw error;
       }
